@@ -1,0 +1,15 @@
+{
+  "name": "meddrop",
+  "version": "1.0.0",
+  "description": "Medicine & essentials delivery app for Chitkara University students",
+  "scripts": {
+    "server": "cd server && node server.js",
+    "server:dev": "cd server && npx nodemon server.js",
+    "client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run server:dev\" \"npm run client\"",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
