@@ -25,8 +25,7 @@ const CategoryGrid = ({ categories }) => {
         {categories.map((cat) => (
           <div
             key={cat._id}
-            className="category-card"
-            style={{ background: CATEGORY_COLORS[cat.slug] || '#F1F5F9' }}
+            className="category-card-wrap"
             onClick={() => {
               if (cat.slug === 'print-store') {
                 navigate('/print-store');
@@ -35,11 +34,13 @@ const CategoryGrid = ({ categories }) => {
               }
             }}
           >
-            {cat.image ? (
-              <img className="category-card-img" src={cat.image} alt={cat.name} loading="lazy" />
-            ) : (
-              <span className="category-card-icon">{cat.icon}</span>
-            )}
+            <div className="category-card" style={{ background: 'rgb(229 243 243)' }}>
+              {cat.image ? (
+                <img className="category-card-img" src={cat.image} alt={cat.name} loading="lazy" />
+              ) : (
+                <span className="category-card-icon">{cat.icon}</span>
+              )}
+            </div>
             <span className="category-card-name">{cat.name}</span>
           </div>
         ))}
