@@ -18,8 +18,8 @@ const adminApi = () => {
 export const adminLogin = (phone, password) =>
   api.post('/admin/login', { phone, password });
 
-export const getDashboard = () =>
-  api.get('/admin/dashboard', adminApi());
+export const getDashboard = (params) =>
+  api.get('/admin/dashboard', { ...adminApi(), params });
 
 export const getAdminOrders = (params) =>
   api.get('/admin/orders', { ...adminApi(), params });

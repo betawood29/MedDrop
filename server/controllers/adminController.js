@@ -34,43 +34,166 @@ const adminLogin = async (req, res, next) => {
   }
 };
 
-// GET /api/admin/dashboard — today's stats
+// GET /api/admin/dashboard — rich stats with date range support
+// Query params: range=7d|15d|30d|custom, from=YYYY-MM-DD, to=YYYY-MM-DD
 const getDashboard = async (req, res, next) => {
   try {
-    const todayStart = new Date();
+    const { range = '7d', from, to } = req.query;
+    const User = require('../models/User');
+
+    // Calculate date range
+    const now = new Date();
+    let rangeStart;
+    let rangeEnd = new Date(now);
+    rangeEnd.setHours(23, 59, 59, 999);
+
+    if (range === 'custom' && from && to) {
+      rangeStart = new Date(from);
+      rangeStart.setHours(0, 0, 0, 0);
+      rangeEnd = new Date(to);
+      rangeEnd.setHours(23, 59, 59, 999);
+    } else {
+      const days = range === '15d' ? 15 : range === '30d' ? 30 : 7;
+      rangeStart = new Date(now);
+      rangeStart.setDate(rangeStart.getDate() - days);
+      rangeStart.setHours(0, 0, 0, 0);
+    }
+
+    // Today boundaries
+    const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
 
-    const [todayOrders, pendingOrders, totalProducts, todayRevenue] = await Promise.all([
+    const rangeMatch = { createdAt: { $gte: rangeStart, $lte: rangeEnd } };
+    const rangeMatchNotCancelled = { createdAt: { $gte: rangeStart, $lte: rangeEnd }, status: { $ne: 'cancelled' } };
+
+    const [
+      todayOrders,
+      todayRevAgg,
+      pendingOrders,
+      totalProducts,
+      outOfStockProducts,
+      totalUsers,
+      rangeOrders,
+      rangeRevenueAgg,
+      rangeCancelledOrders,
+      rangeDeliveredOrders,
+      dailyTrend,
+      topProducts,
+      orderStatusBreakdown,
+      revenueByPayment,
+      avgOrderValueAgg,
+      peakHoursAgg,
+    ] = await Promise.all([
+      // Today stats
       Order.countDocuments({ createdAt: { $gte: todayStart } }),
-      Order.countDocuments({ status: { $in: ['placed', 'confirmed', 'packed'] } }),
-      Product.countDocuments({ isActive: true }),
       Order.aggregate([
         { $match: { createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } } },
         { $group: { _id: null, total: { $sum: '$total' } } },
       ]),
+      Order.countDocuments({ status: { $in: ['placed', 'confirmed', 'packed'] } }),
+      Product.countDocuments({ isActive: true }),
+      Product.countDocuments({ isActive: true, inStock: false }),
+      User.countDocuments(),
+
+      // Range stats
+      Order.countDocuments(rangeMatch),
+      Order.aggregate([
+        { $match: rangeMatchNotCancelled },
+        { $group: { _id: null, total: { $sum: '$total' } } },
+      ]),
+      Order.countDocuments({ ...rangeMatch, status: 'cancelled' }),
+      Order.countDocuments({ ...rangeMatch, status: 'delivered' }),
+
+      // Daily trend (orders + revenue per day)
+      Order.aggregate([
+        { $match: { createdAt: { $gte: rangeStart, $lte: rangeEnd } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            orders: { $sum: 1 },
+            revenue: { $sum: { $cond: [{ $ne: ['$status', 'cancelled'] }, '$total', 0] } },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+
+      // Top 5 most bought products (by quantity sold in range)
+      Order.aggregate([
+        { $match: rangeMatchNotCancelled },
+        { $unwind: '$items' },
+        {
+          $group: {
+            _id: '$items.product',
+            name: { $first: '$items.name' },
+            image: { $first: '$items.image' },
+            totalQty: { $sum: '$items.quantity' },
+            totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+          },
+        },
+        { $sort: { totalQty: -1 } },
+        { $limit: 5 },
+      ]),
+
+      // Order status breakdown for range
+      Order.aggregate([
+        { $match: { createdAt: { $gte: rangeStart, $lte: rangeEnd } } },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+
+      // Revenue by payment method
+      Order.aggregate([
+        { $match: rangeMatchNotCancelled },
+        { $group: { _id: '$paymentMethod', total: { $sum: '$total' }, count: { $sum: 1 } } },
+      ]),
+
+      // Average order value
+      Order.aggregate([
+        { $match: rangeMatchNotCancelled },
+        { $group: { _id: null, avg: { $avg: '$total' } } },
+      ]),
+
+      // Peak order hours
+      Order.aggregate([
+        { $match: { createdAt: { $gte: rangeStart, $lte: rangeEnd } } },
+        { $group: { _id: { $hour: '$createdAt' }, count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+      ]),
     ]);
 
-    // Orders this week (for chart)
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - 7);
-    const weeklyOrders = await Order.aggregate([
-      { $match: { createdAt: { $gte: weekStart } } },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          count: { $sum: 1 },
-          revenue: { $sum: '$total' },
-        },
-      },
-      { $sort: { _id: 1 } },
-    ]);
+    // Format status breakdown into an object
+    const statusBreakdown = {};
+    orderStatusBreakdown.forEach((s) => { statusBreakdown[s._id] = s.count; });
+
+    // Format payment breakdown
+    const paymentBreakdown = {};
+    revenueByPayment.forEach((p) => {
+      paymentBreakdown[p._id || 'unknown'] = { revenue: p.total, orders: p.count };
+    });
 
     ApiResponse.success(res, {
+      // Today
       todayOrders,
+      todayRevenue: todayRevAgg[0]?.total || 0,
       pendingOrders,
+      // Inventory
       totalProducts,
-      todayRevenue: todayRevenue[0]?.total || 0,
-      weeklyOrders,
+      outOfStockProducts,
+      // Users
+      totalUsers,
+      // Range stats
+      range: { from: rangeStart, to: rangeEnd },
+      rangeOrders,
+      rangeRevenue: rangeRevenueAgg[0]?.total || 0,
+      rangeCancelledOrders,
+      rangeDeliveredOrders,
+      avgOrderValue: Math.round(avgOrderValueAgg[0]?.avg || 0),
+      // Trends & breakdowns
+      dailyTrend,
+      topProducts,
+      statusBreakdown,
+      paymentBreakdown,
+      peakHours: peakHoursAgg.map((h) => ({ hour: h._id, orders: h.count })),
     });
   } catch (err) {
     next(err);
