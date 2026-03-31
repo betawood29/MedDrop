@@ -74,3 +74,22 @@ export const uploadCategoryImage = (formData) =>
     ...adminApi(),
     headers: { ...adminApi().headers, 'Content-Type': 'multipart/form-data' },
   });
+
+// SubCategory management
+export const getAdminSubCategories = (params) =>
+  api.get('/admin/subcategories', { ...adminApi(), params });
+
+export const createSubCategory = (data) =>
+  api.post('/admin/subcategories', data, adminApi());
+
+export const updateSubCategory = (id, data) =>
+  api.put(`/admin/subcategories/${id}`, data, adminApi());
+
+export const deleteSubCategory = (id) =>
+  api.delete(`/admin/subcategories/${id}`, adminApi());
+
+export const uploadSubCategoryImage = (formData) =>
+  api.post('/admin/subcategories/upload-image', formData, {
+    ...adminApi(),
+    headers: { ...adminApi().headers, 'Content-Type': 'multipart/form-data' },
+  });

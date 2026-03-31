@@ -314,6 +314,7 @@ const getAdminProducts = async (req, res, next) => {
 
     const products = await Product.find(query)
       .populate('category', 'name slug')
+      .populate('subCategory', 'name slug')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parsedLimit);
@@ -561,6 +562,62 @@ const uploadCategoryImage = async (req, res, next) => {
   }
 };
 
+// --- SubCategory CRUD ---
+const SubCategory = require('../models/SubCategory');
+
+// GET /api/admin/subcategories
+const getAdminSubCategories = async (req, res, next) => {
+  try {
+    const { category } = req.query;
+    const query = {};
+    if (category) query.parentCategory = category;
+    const subs = await SubCategory.find(query)
+      .populate('parentCategory', 'name slug')
+      .sort({ displayOrder: 1, name: 1 });
+    ApiResponse.success(res, subs);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/admin/subcategories
+const createSubCategory = async (req, res, next) => {
+  try {
+    const { name, parentCategory, icon, image, displayOrder } = req.body;
+    if (!name || !parentCategory) throw ApiError.badRequest('Name and parentCategory are required');
+    const sub = await SubCategory.create({ name, parentCategory, icon, image, displayOrder });
+    await sub.populate('parentCategory', 'name slug');
+    ApiResponse.created(res, sub, 'SubCategory created');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// PUT /api/admin/subcategories/:id
+const updateSubCategory = async (req, res, next) => {
+  try {
+    const sub = await SubCategory.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    }).populate('parentCategory', 'name slug');
+    if (!sub) throw ApiError.notFound('SubCategory not found');
+    ApiResponse.success(res, sub, 'SubCategory updated');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// DELETE /api/admin/subcategories/:id
+const deleteSubCategory = async (req, res, next) => {
+  try {
+    const sub = await SubCategory.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    if (!sub) throw ApiError.notFound('SubCategory not found');
+    ApiResponse.success(res, null, 'SubCategory deleted');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   adminLogin,
   getDashboard,
@@ -576,4 +633,8 @@ module.exports = {
   deleteCategory,
   uploadProductImage,
   uploadCategoryImage,
+  getAdminSubCategories,
+  createSubCategory,
+  updateSubCategory,
+  deleteSubCategory,
 };

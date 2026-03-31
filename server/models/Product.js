@@ -28,6 +28,10 @@ const productSchema = new mongoose.Schema(
       ref: 'Category',
       required: [true, 'Category is required'],
     },
+    subCategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SubCategory',
+    },
     image: {
       type: String, // Cloudinary URL
     },
@@ -55,5 +59,6 @@ const productSchema = new mongoose.Schema(
 // Index for search and filtering
 productSchema.index({ name: 'text', tags: 'text', description: 'text' });
 productSchema.index({ category: 1, isActive: 1 });
+productSchema.index({ subCategory: 1, isActive: 1 });
 
 module.exports = mongoose.model('Product', productSchema);

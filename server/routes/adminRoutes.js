@@ -1,4 +1,4 @@
-// Admin routes — dashboard, order management, product CRUD, category CRUD
+// Admin routes — dashboard, order management, product CRUD, category CRUD, subcategory CRUD
 // All routes (except login) require admin authentication
 const router = require('express').Router();
 const adminAuth = require('../middleware/admin');
@@ -17,6 +17,12 @@ const {
   createCategory,
   updateCategory,
   deleteCategory,
+  uploadProductImage,
+  uploadCategoryImage,
+  getAdminSubCategories,
+  createSubCategory,
+  updateSubCategory,
+  deleteSubCategory,
 } = require('../controllers/adminController');
 const { uploadExcel, downloadTemplate } = require('../controllers/uploadController');
 const { getCategories } = require('../controllers/productController');
@@ -39,7 +45,6 @@ router.post('/products/upload-excel', excelUpload.single('file'), uploadExcel);
 router.get('/products/download-template', downloadTemplate);
 
 // Product image upload
-const { uploadProductImage } = require('../controllers/adminController');
 router.post('/products/upload-image', imageUpload.single('image'), uploadProductImage);
 
 // Product management
@@ -55,8 +60,15 @@ router.post('/categories', createCategory);
 router.put('/categories/:id', updateCategory);
 router.delete('/categories/:id', deleteCategory);
 
-// Category image upload (reuses same Cloudinary uploader)
-const { uploadCategoryImage } = require('../controllers/adminController');
+// Category image upload
 router.post('/categories/upload-image', imageUpload.single('image'), uploadCategoryImage);
+
+// SubCategory management
+router.get('/subcategories', getAdminSubCategories);
+router.post('/subcategories', createSubCategory);
+router.put('/subcategories/:id', updateSubCategory);
+router.delete('/subcategories/:id', deleteSubCategory);
+// Subcategory image upload (reuses same Cloudinary uploader as categories)
+router.post('/subcategories/upload-image', imageUpload.single('image'), uploadCategoryImage);
 
 module.exports = router;

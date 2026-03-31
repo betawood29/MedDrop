@@ -1,20 +1,21 @@
 // Category grid — Blinkit-style visual category cards for homepage
 // Shows category icon + name in a responsive grid, click to browse
+// Categories with subcategories navigate to subcategory page
 
 import { useNavigate } from 'react-router-dom';
 
-const CATEGORY_COLORS = {
-  medicines: '#FEF3C7',
-  snacks: '#FEE2E2',
-  'personal-care': '#E0E7FF',
-  beverages: '#D1FAE5',
-  stationery: '#F3E8FF',
-  essentials: '#DBEAFE',
-  'print-store': '#FCE7F3',
-};
-
-const CategoryGrid = ({ categories }) => {
+const CategoryGrid = ({ categories, categoriesWithSubs = new Set() }) => {
   const navigate = useNavigate();
+
+  const handleClick = (cat) => {
+    if (cat.slug === 'print-store') {
+      navigate('/print-store');
+    } else if (categoriesWithSubs.has(cat.slug)) {
+      navigate(`/category/${cat.slug}/sub`);
+    } else {
+      navigate(`/category/${cat.slug}`);
+    }
+  };
 
   return (
     <section className="home-section">
@@ -26,13 +27,7 @@ const CategoryGrid = ({ categories }) => {
           <div
             key={cat._id}
             className="category-card-wrap"
-            onClick={() => {
-              if (cat.slug === 'print-store') {
-                navigate('/print-store');
-              } else {
-                navigate(`/category/${cat.slug}`);
-              }
-            }}
+            onClick={() => handleClick(cat)}
           >
             <div className="category-card" style={{ background: 'rgb(229 243 243)' }}>
               {cat.image ? (

@@ -1,27 +1,30 @@
-// Product add/edit form modal with image upload
+// Product add/edit form modal with image upload + subcategory support
 
 import { useState, useEffect, useRef } from 'react';
 import { X, Upload, ImageIcon, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { uploadProductImage } from '../../services/adminService';
+import { uploadProductImage, getAdminSubCategories } from '../../services/adminService';
 
 const ProductForm = ({ product, categories, onSubmit, onClose, loading }) => {
   const [form, setForm] = useState({
-    name: '', description: '', price: '', mrp: '', category: '',
+    name: '', description: '', price: '', mrp: '', category: '', subCategory: '',
     inStock: true, stockQty: 0, requiresPrescription: false, tags: '', image: '',
   });
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState('');
+  const [subCategories, setSubCategories] = useState([]);
   const fileRef = useRef(null);
 
   useEffect(() => {
     if (product) {
+      const catId = product.category?._id || product.category || '';
       setForm({
         name: product.name || '',
         description: product.description || '',
         price: product.price || '',
         mrp: product.mrp || '',
-        category: product.category?._id || product.category || '',
+        category: catId,
+        subCategory: product.subCategory?._id || product.subCategory || '',
         inStock: product.inStock ?? true,
         stockQty: product.stockQty || 0,
         requiresPrescription: product.requiresPrescription || false,
@@ -29,18 +32,32 @@ const ProductForm = ({ product, categories, onSubmit, onClose, loading }) => {
         image: product.image || '',
       });
       if (product.image) setImagePreview(product.image);
+      // Load subcategories for the product's category
+      if (catId) fetchSubCategories(catId);
     }
   }, [product]);
 
+  const fetchSubCategories = async (categoryId) => {
+    try {
+      const res = await getAdminSubCategories({ category: categoryId });
+      setSubCategories(res.data.data || []);
+    } catch {
+      setSubCategories([]);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit({
+    const data = {
       ...form,
       price: Number(form.price),
       mrp: form.mrp ? Number(form.mrp) : null,
       stockQty: Number(form.stockQty),
       tags: form.tags,
-    });
+    };
+    // Don't send empty subCategory
+    if (!data.subCategory) delete data.subCategory;
+    onSubmit(data);
   };
 
   const update = (field, value) => {
@@ -53,6 +70,15 @@ const ProductForm = ({ product, categories, onSubmit, onClose, loading }) => {
       }
       if (field === 'inStock' && value === true && Number(prev.stockQty) <= 0) {
         next.stockQty = 1;
+      }
+      // When category changes, reset subcategory and load new ones
+      if (field === 'category') {
+        next.subCategory = '';
+        if (value) {
+          fetchSubCategories(value);
+        } else {
+          setSubCategories([]);
+        }
       }
       return next;
     });
@@ -160,6 +186,16 @@ const ProductForm = ({ product, categories, onSubmit, onClose, loading }) => {
             <option value="">Select category</option>
             {categories.map((c) => <option key={c._id} value={c._id}>{c.icon} {c.name}</option>)}
           </select>
+
+          {subCategories.length > 0 && (
+            <>
+              <label className="input-label">Sub-Category</label>
+              <select className="input" value={form.subCategory} onChange={(e) => update('subCategory', e.target.value)}>
+                <option value="">None (General)</option>
+                {subCategories.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+              </select>
+            </>
+          )}
 
           <div className="form-row">
             <div>

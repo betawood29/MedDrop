@@ -8,7 +8,7 @@ import QuickActions from '../components/shop/QuickActions';
 import CategoryGrid from '../components/shop/CategoryGrid';
 import ProductGrid from '../components/shop/ProductGrid';
 import CartBar from '../components/shop/CartBar';
-import { getProducts, getCategories } from '../services/productService';
+import { getProducts, getCategories, getSubCategories } from '../services/productService';
 import { useShopSocket } from '../hooks/useSocket';
 
 const ShopPage = () => {
@@ -17,10 +17,20 @@ const ShopPage = () => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchMode, setSearchMode] = useState(false);
+  const [categoriesWithSubs, setCategoriesWithSubs] = useState(new Set());
   const navigate = useNavigate();
 
   useEffect(() => {
     getCategories().then((res) => setCategories(res.data.data)).catch(console.error);
+    // Fetch all subcategories to know which categories have sub-sections
+    getSubCategories().then((res) => {
+      const subs = res.data.data || [];
+      const parentSlugs = new Set();
+      subs.forEach((s) => {
+        if (s.parentCategory?.slug) parentSlugs.add(s.parentCategory.slug);
+      });
+      setCategoriesWithSubs(parentSlugs);
+    }).catch(console.error);
   }, []);
 
   // Fetch trending/all products
@@ -67,7 +77,7 @@ const ShopPage = () => {
         <>
           <HeroBanner />
           <QuickActions />
-          <CategoryGrid categories={categories} />
+          <CategoryGrid categories={categories} categoriesWithSubs={categoriesWithSubs} />
 
           <section className="home-section">
             <div className="section-title-row">

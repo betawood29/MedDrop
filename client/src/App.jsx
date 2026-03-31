@@ -22,6 +22,7 @@ import OrdersPage from './pages/OrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import ProductPage from './pages/ProductPage';
+import SubCategoryPage from './pages/SubCategoryPage';
 
 // Admin
 import AdminLayout from './pages/admin/AdminLayout';
@@ -71,6 +72,7 @@ const CustomerLayout = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/category/:slug" element={<CategoryPage />} />
+          <Route path="/category/:slug/sub" element={<SubCategoryPage />} />
           <Route path="/product/:id" element={<ProductPage />} />
           <Route path="/print-store" element={<PrintStorePage />} />
           <Route path="/cart" element={<CartPage />} />
