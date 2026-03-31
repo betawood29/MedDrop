@@ -3,9 +3,9 @@
 // Right: products grid for the active subcategory
 // URL: /category/:slug/sub
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import ProductCard from '../components/shop/ProductCard';
 import CartBar from '../components/shop/CartBar';
 import Loader from '../components/common/Loader';
@@ -20,11 +20,7 @@ const SubCategoryPage = () => {
   const [products, setProducts] = useState([]);
   const [loadingSubs, setLoadingSubs] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
-  const [search, setSearch] = useState('');
   const [categoryName, setCategoryName] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
-  const searchRef = useRef(null);
-  const sidebarRef = useRef(null);
 
   // Load subcategories and auto-select first
   useEffect(() => {
@@ -47,21 +43,19 @@ const SubCategoryPage = () => {
     load();
   }, [slug]);
 
-  // Fetch products when active subcategory or search changes
+  // Fetch products when active subcategory changes
   const fetchProducts = useCallback(async () => {
     if (!activeSub) return;
     setLoadingProducts(true);
     try {
-      const params = { subCategory: activeSub.slug, limit: 50 };
-      if (search) params.search = search;
-      const res = await getProducts(params);
+      const res = await getProducts({ subCategory: activeSub.slug, limit: 50 });
       setProducts(res.data.data);
     } catch (err) {
       console.error('Failed to load products:', err);
     } finally {
       setLoadingProducts(false);
     }
-  }, [activeSub, search]);
+  }, [activeSub]);
 
   useEffect(() => {
     if (activeSub) fetchProducts();
@@ -77,13 +71,6 @@ const SubCategoryPage = () => {
 
   const handleSelectSub = (sub) => {
     setActiveSub(sub);
-    setSearch('');
-    setShowSearch(false);
-  };
-
-  const toggleSearch = () => {
-    setShowSearch((v) => !v);
-    if (!showSearch) setTimeout(() => searchRef.current?.focus(), 100);
   };
 
   if (loadingSubs) return <Loader text="Loading..." />;
@@ -98,30 +85,12 @@ const SubCategoryPage = () => {
         <div className="sc-top-title">
           <h2>{categoryName || 'Category'}</h2>
         </div>
-        <button className="sc-search-toggle" onClick={toggleSearch}>
-          <Search size={20} />
-        </button>
       </div>
-
-      {/* Search bar (collapsible) */}
-      {showSearch && (
-        <div className="sc-search-bar">
-          <Search size={16} className="sc-search-icon" />
-          <input
-            ref={searchRef}
-            type="text"
-            placeholder={`Search in ${activeSub?.name || categoryName}...`}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="sc-search-input"
-          />
-        </div>
-      )}
 
       {/* Main layout: sidebar + products */}
       <div className="sc-layout">
         {/* Left sidebar */}
-        <div className="sc-sidebar" ref={sidebarRef}>
+        <div className="sc-sidebar">
           {subCategories.map((sub) => (
             <div
               key={sub._id}
@@ -153,7 +122,7 @@ const SubCategoryPage = () => {
           ) : products.length === 0 ? (
             <div className="sc-empty">
               <span>🔍</span>
-              <p>{search ? `No results for "${search}"` : 'No products yet in this section'}</p>
+              <p>No products yet in this section</p>
             </div>
           ) : (
             <div className="sc-product-grid">

@@ -11,3 +11,5 @@ export const getCategories = () => api.get('/categories');
 export const getSubCategories = (params) => api.get('/subcategories', { params });
 
 export const getSubCategoryProducts = (slug) => api.get(`/subcategories/${slug}/products`);
+
+export const searchProducts = (q, limit = 20) => api.get('/search', { params: { q, limit } });

@@ -131,4 +131,81 @@ const getSubCategoryProducts = async (req, res, next) => {
   }
 };
 
-module.exports = { getProducts, getProduct, getCategories, getSubCategories, getSubCategoryProducts };
+// GET /api/search?q=query&limit=20 — optimized universal search
+// Uses MongoDB $text index for relevance scoring, falls back to regex for partial matches
+const searchProducts = async (req, res, next) => {
+  try {
+    const { q, limit = 20 } = req.query;
+    if (!q || !q.trim()) {
+      return ApiResponse.success(res, { products: [], suggestions: [] });
+    }
+
+    const query = q.trim();
+    const parsedLimit = Math.min(50, Math.max(1, parseInt(limit) || 20));
+
+    // Strategy 1: $text search (uses index, ranked by relevance)
+    let products = [];
+    try {
+      products = await Product.find(
+        { $text: { $search: query }, isActive: true },
+        { score: { $meta: 'textScore' } }
+      )
+        .populate('category', 'name slug icon image')
+        .populate('subCategory', 'name slug')
+        .sort({ score: { $meta: 'textScore' } })
+        .limit(parsedLimit)
+        .lean();
+    } catch {
+      // $text index may not exist yet — skip
+    }
+
+    // Strategy 2: regex fallback for partial/prefix matches (if $text returned few results)
+    if (products.length < parsedLimit) {
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existingIds = products.map((p) => p._id);
+      const regexResults = await Product.find({
+        _id: { $nin: existingIds },
+        isActive: true,
+        $or: [
+          { name: { $regex: escaped, $options: 'i' } },
+          { tags: { $regex: escaped, $options: 'i' } },
+          { description: { $regex: escaped, $options: 'i' } },
+        ],
+      })
+        .populate('category', 'name slug icon image')
+        .populate('subCategory', 'name slug')
+        .sort({ inStock: -1, createdAt: -1 })
+        .limit(parsedLimit - products.length)
+        .lean();
+
+      products = [...products, ...regexResults];
+    }
+
+    // In-stock products first
+    products.sort((a, b) => {
+      if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
+      return 0;
+    });
+
+    // Build category-grouped suggestions for quick navigation
+    const categoryMap = new Map();
+    products.forEach((p) => {
+      if (p.category) {
+        const key = p.category._id.toString();
+        if (!categoryMap.has(key)) {
+          categoryMap.set(key, { ...p.category, count: 0 });
+        }
+        categoryMap.get(key).count++;
+      }
+    });
+    const suggestions = Array.from(categoryMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    ApiResponse.success(res, { products, suggestions, total: products.length });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getProducts, getProduct, getCategories, getSubCategories, getSubCategoryProducts, searchProducts };

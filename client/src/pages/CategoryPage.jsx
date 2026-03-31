@@ -4,7 +4,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import SearchBar from '../components/common/SearchBar';
 import CategoryBar from '../components/shop/CategoryBar';
 import ProductGrid from '../components/shop/ProductGrid';
 import CartBar from '../components/shop/CartBar';
@@ -17,7 +16,6 @@ const CategoryPage = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState(slug === 'all' ? null : slug);
-  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [categoryName, setCategoryName] = useState('');
 
@@ -36,7 +34,6 @@ const CategoryPage = () => {
     try {
       const params = {};
       if (activeCategory) params.category = activeCategory;
-      if (search) params.search = search;
       const res = await getProducts(params);
       setProducts(res.data.data);
     } catch (err) {
@@ -44,7 +41,7 @@ const CategoryPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeCategory, search]);
+  }, [activeCategory]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -60,7 +57,6 @@ const CategoryPage = () => {
     }
   };
 
-  // Real-time product updates from admin
   const handleProductUpdate = useCallback((updatedProduct) => {
     setProducts((prev) =>
       prev.map((p) =>
@@ -71,8 +67,6 @@ const CategoryPage = () => {
 
   useShopSocket(handleProductUpdate);
 
-  const handleSearch = useCallback((q) => setSearch(q), []);
-
   return (
     <div className="shop-page">
       <div className="category-page-header">
@@ -82,7 +76,6 @@ const CategoryPage = () => {
         <h2 className="category-page-title">{categoryName || 'All Products'}</h2>
       </div>
 
-      <SearchBar onSearch={handleSearch} placeholder="Search in this category..." />
       <CategoryBar categories={categories} active={activeCategory} onSelect={handleCategorySelect} />
       <ProductGrid products={products} loading={loading} />
       <CartBar />
