@@ -32,6 +32,7 @@ import AdminOrders from './pages/admin/AdminOrders';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminUpload from './pages/admin/AdminUpload';
 import AdminCategories from './pages/admin/AdminCategories';
+import AdminBanner from './pages/admin/AdminBanner';
 
 const App = () => {
   return (
@@ -50,6 +51,7 @@ const App = () => {
               <Route path="products" element={<AdminProducts />} />
               <Route path="upload" element={<AdminUpload />} />
               <Route path="categories" element={<AdminCategories />} />
+              <Route path="banner" element={<AdminBanner />} />
             </Route>
 
             {/* Customer routes */}

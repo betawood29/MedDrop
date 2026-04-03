@@ -1,7 +1,7 @@
 // Admin sidebar navigation — desktop sidebar / mobile top tabs
 
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ShoppingBag, Package, Upload, FolderTree, LogOut } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Package, Upload, FolderTree, Image, LogOut } from 'lucide-react';
 
 const links = [
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -9,6 +9,7 @@ const links = [
   { to: '/admin/products', icon: Package, label: 'Products' },
   { to: '/admin/upload', icon: Upload, label: 'Excel Upload' },
   { to: '/admin/categories', icon: FolderTree, label: 'Categories' },
+  { to: '/admin/banner', icon: Image, label: 'Banner' },
 ];
 
 const AdminSidebar = ({ onLogout }) => {

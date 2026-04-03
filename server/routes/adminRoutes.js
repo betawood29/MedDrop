@@ -26,6 +26,7 @@ const {
 } = require('../controllers/adminController');
 const { uploadExcel, downloadTemplate } = require('../controllers/uploadController');
 const { getCategories } = require('../controllers/productController');
+const { getBanners, createBanner, updateBanner, deleteBanner, uploadBannerImage } = require('../controllers/bannerController');
 
 // Admin login (no auth needed, rate limited)
 router.post('/login', adminLoginLimiter, adminLogin);
@@ -70,5 +71,12 @@ router.put('/subcategories/:id', updateSubCategory);
 router.delete('/subcategories/:id', deleteSubCategory);
 // Subcategory image upload (reuses same Cloudinary uploader as categories)
 router.post('/subcategories/upload-image', imageUpload.single('image'), uploadCategoryImage);
+
+// Banner management
+router.get('/banner', getBanners);
+router.post('/banner', createBanner);
+router.put('/banner/:id', updateBanner);
+router.delete('/banner/:id', deleteBanner);
+router.post('/banner/upload-image', imageUpload.single('image'), uploadBannerImage);
 
 module.exports = router;
