@@ -1,8 +1,9 @@
-// Top navigation bar — Blinkit-style green header with logo, universal search, cart/profile
+// Top navigation bar — responsive: mobile search pill + desktop nav links
+// Bottom nav hidden on 769px+, so navbar shows Orders/Profile links on desktop
 
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, MapPin, Search } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { ShoppingCart, User, MapPin, Search, ClipboardList, Home } from 'lucide-react';
 import { useCart } from '../../hooks/useCart';
 import { useAuth } from '../../hooks/useAuth';
 import GlobalSearch from './GlobalSearch';
@@ -11,6 +12,7 @@ const Navbar = () => {
   const { itemCount } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showSearch, setShowSearch] = useState(false);
 
   return (
@@ -34,6 +36,21 @@ const Navbar = () => {
         <div className="navbar-search" onClick={() => setShowSearch(true)}>
           <Search size={15} />
           <span>Search products...</span>
+        </div>
+
+        {/* Desktop nav links (hidden on mobile, shown when bottom-nav is hidden) */}
+        <div className="navbar-desktop-links">
+          <Link to="/" className={`navbar-link ${location.pathname === '/' ? 'active' : ''}`}>
+            <Home size={18} /> Home
+          </Link>
+          <Link to="/category/all" className={`navbar-link ${location.pathname.startsWith('/category') ? 'active' : ''}`}>
+            <Search size={18} /> Browse
+          </Link>
+          {user && (
+            <Link to="/orders" className={`navbar-link ${location.pathname.startsWith('/orders') ? 'active' : ''}`}>
+              <ClipboardList size={18} /> Orders
+            </Link>
+          )}
         </div>
 
         <div className="navbar-actions">
