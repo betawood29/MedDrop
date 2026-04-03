@@ -101,6 +101,35 @@ const PrintStorePage = () => {
     }
   };
 
+  // Price preview sidebar content (reused in steps 2 & 3)
+  const PricePreview = () => priceCalc ? (
+    <div className="print-section-sidebar">
+      <h3>Price Estimate</h3>
+      <div className="print-price-preview" style={{ margin: 0 }}>
+        <div className="summary-row">
+          <span>{priceCalc.pages} pages x {priceCalc.copies} copies x {formatPrice(priceCalc.pricePerPage)}</span>
+          <span>{formatPrice(priceCalc.subtotal)}</span>
+        </div>
+        <div className="summary-row">
+          <span>Delivery</span>
+          <span className={priceCalc.deliveryFee === 0 ? 'text-green' : ''}>
+            {priceCalc.deliveryFee === 0 ? 'FREE' : formatPrice(priceCalc.deliveryFee)}
+          </span>
+        </div>
+        <div className="summary-row summary-total">
+          <span>Total</span>
+          <span>{formatPrice(priceCalc.total)}</span>
+        </div>
+      </div>
+      {/* File summary */}
+      <div style={{ marginTop: 16, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+        <strong>{files.length} file{files.length !== 1 ? 's' : ''}</strong> uploaded
+        <br />
+        {config.colorMode === 'bw' ? 'Black & White' : 'Color'} · {config.sides === 'single' ? 'Single-sided' : 'Double-sided'} · {config.paperSize}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="page-container print-store">
       <div className="category-page-header">
@@ -181,167 +210,156 @@ const PrintStorePage = () => {
 
       {/* Step 2: Configure */}
       {step === 2 && (
-        <div className="print-section">
-          <h3><Layers size={18} /> Print Settings</h3>
+        <div className="print-section-layout">
+          <div className="print-section print-section-main">
+            <h3><Layers size={18} /> Print Settings</h3>
 
-          <label className="input-label">Total Pages (across all files)</label>
-          <input
-            type="number"
-            className="input"
-            value={config.totalPages}
-            onChange={(e) => setConfig({ ...config, totalPages: e.target.value })}
-            placeholder="e.g. 25"
-            min="1"
-          />
+            <label className="input-label">Total Pages (across all files)</label>
+            <input
+              type="number"
+              className="input"
+              value={config.totalPages}
+              onChange={(e) => setConfig({ ...config, totalPages: e.target.value })}
+              placeholder="e.g. 25"
+              min="1"
+            />
 
-          <label className="input-label">Number of Copies</label>
-          <div className="print-counter">
-            <button onClick={() => setConfig({ ...config, copies: Math.max(1, config.copies - 1) })}>-</button>
-            <span>{config.copies}</span>
-            <button onClick={() => setConfig({ ...config, copies: Math.min(50, config.copies + 1) })}>+</button>
-          </div>
-
-          <label className="input-label">Print Mode</label>
-          <div className="print-options">
-            <button
-              className={`print-option ${config.colorMode === 'bw' ? 'active' : ''}`}
-              onClick={() => setConfig({ ...config, colorMode: 'bw' })}
-            >
-              <File size={18} />
-              <span>Black & White</span>
-              <span className="print-option-price">₹2/page</span>
-            </button>
-            <button
-              className={`print-option ${config.colorMode === 'color' ? 'active' : ''}`}
-              onClick={() => setConfig({ ...config, colorMode: 'color' })}
-            >
-              <Palette size={18} />
-              <span>Color</span>
-              <span className="print-option-price">₹5/page</span>
-            </button>
-          </div>
-
-          <label className="input-label">Sides</label>
-          <div className="print-options">
-            <button
-              className={`print-option ${config.sides === 'single' ? 'active' : ''}`}
-              onClick={() => setConfig({ ...config, sides: 'single' })}
-            >
-              <span>Single Side</span>
-            </button>
-            <button
-              className={`print-option ${config.sides === 'double' ? 'active' : ''}`}
-              onClick={() => setConfig({ ...config, sides: 'double' })}
-            >
-              <span>Double Side</span>
-              <span className="print-option-price">25% off</span>
-            </button>
-          </div>
-
-          <label className="input-label">Paper Size</label>
-          <div className="print-options three">
-            {['A4', 'A3', 'Letter'].map((size) => (
-              <button
-                key={size}
-                className={`print-option ${config.paperSize === size ? 'active' : ''}`}
-                onClick={() => setConfig({ ...config, paperSize: size })}
-              >
-                <span>{size}</span>
-              </button>
-            ))}
-          </div>
-
-          {priceCalc && (
-            <div className="print-price-preview">
-              <div className="summary-row">
-                <span>{priceCalc.pages} pages x {priceCalc.copies} copies x {formatPrice(priceCalc.pricePerPage)}</span>
-                <span>{formatPrice(priceCalc.subtotal)}</span>
-              </div>
-              <div className="summary-row">
-                <span>Delivery</span>
-                <span className={priceCalc.deliveryFee === 0 ? 'text-green' : ''}>
-                  {priceCalc.deliveryFee === 0 ? 'FREE' : formatPrice(priceCalc.deliveryFee)}
-                </span>
-              </div>
-              <div className="summary-row summary-total">
-                <span>Total</span>
-                <span>{formatPrice(priceCalc.total)}</span>
-              </div>
+            <label className="input-label">Number of Copies</label>
+            <div className="print-counter">
+              <button onClick={() => setConfig({ ...config, copies: Math.max(1, config.copies - 1) })}>-</button>
+              <span>{config.copies}</span>
+              <button onClick={() => setConfig({ ...config, copies: Math.min(50, config.copies + 1) })}>+</button>
             </div>
-          )}
 
-          <div className="print-nav-btns">
-            <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
-            <button
-              className="btn-primary"
-              disabled={!config.totalPages || config.totalPages < 1}
-              onClick={() => setStep(3)}
-            >
-              Review Order
-            </button>
+            <label className="input-label">Print Mode</label>
+            <div className="print-options">
+              <button
+                className={`print-option ${config.colorMode === 'bw' ? 'active' : ''}`}
+                onClick={() => setConfig({ ...config, colorMode: 'bw' })}
+              >
+                <File size={18} />
+                <span>Black & White</span>
+                <span className="print-option-price">₹2/page</span>
+              </button>
+              <button
+                className={`print-option ${config.colorMode === 'color' ? 'active' : ''}`}
+                onClick={() => setConfig({ ...config, colorMode: 'color' })}
+              >
+                <Palette size={18} />
+                <span>Color</span>
+                <span className="print-option-price">₹5/page</span>
+              </button>
+            </div>
+
+            <label className="input-label">Sides</label>
+            <div className="print-options">
+              <button
+                className={`print-option ${config.sides === 'single' ? 'active' : ''}`}
+                onClick={() => setConfig({ ...config, sides: 'single' })}
+              >
+                <span>Single Side</span>
+              </button>
+              <button
+                className={`print-option ${config.sides === 'double' ? 'active' : ''}`}
+                onClick={() => setConfig({ ...config, sides: 'double' })}
+              >
+                <span>Double Side</span>
+                <span className="print-option-price">25% off</span>
+              </button>
+            </div>
+
+            <label className="input-label">Paper Size</label>
+            <div className="print-options three">
+              {['A4', 'A3', 'Letter'].map((size) => (
+                <button
+                  key={size}
+                  className={`print-option ${config.paperSize === size ? 'active' : ''}`}
+                  onClick={() => setConfig({ ...config, paperSize: size })}
+                >
+                  <span>{size}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="print-nav-btns">
+              <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
+              <button
+                className="btn-primary"
+                disabled={!config.totalPages || config.totalPages < 1}
+                onClick={() => setStep(3)}
+              >
+                Review Order
+              </button>
+            </div>
           </div>
+
+          <PricePreview />
         </div>
       )}
 
       {/* Step 3: Review & Delivery */}
       {step === 3 && (
-        <div className="print-section">
-          <h3><Printer size={18} /> Review & Place Order</h3>
+        <div className="print-section-layout">
+          <div className="print-section print-section-main">
+            <h3><Printer size={18} /> Review & Place Order</h3>
 
-          <div className="print-review-card">
-            <div className="print-review-row">
-              <span>Files</span>
-              <span>{files.length} file{files.length > 1 ? 's' : ''}</span>
-            </div>
-            <div className="print-review-row">
-              <span>Pages</span>
-              <span>{config.totalPages} x {config.copies} copies</span>
-            </div>
-            <div className="print-review-row">
-              <span>Mode</span>
-              <span>{config.colorMode === 'bw' ? 'Black & White' : 'Color'}, {config.sides === 'single' ? 'Single-sided' : 'Double-sided'}</span>
-            </div>
-            <div className="print-review-row">
-              <span>Paper</span>
-              <span>{config.paperSize}</span>
-            </div>
-            {priceCalc && (
-              <div className="print-review-row total">
-                <span>Total</span>
-                <span>{formatPrice(priceCalc.total)}</span>
+            <div className="print-review-card">
+              <div className="print-review-row">
+                <span>Files</span>
+                <span>{files.length} file{files.length > 1 ? 's' : ''}</span>
               </div>
-            )}
+              <div className="print-review-row">
+                <span>Pages</span>
+                <span>{config.totalPages} x {config.copies} copies</span>
+              </div>
+              <div className="print-review-row">
+                <span>Mode</span>
+                <span>{config.colorMode === 'bw' ? 'Black & White' : 'Color'}, {config.sides === 'single' ? 'Single-sided' : 'Double-sided'}</span>
+              </div>
+              <div className="print-review-row">
+                <span>Paper</span>
+                <span>{config.paperSize}</span>
+              </div>
+              {priceCalc && (
+                <div className="print-review-row total">
+                  <span>Total</span>
+                  <span>{formatPrice(priceCalc.total)}</span>
+                </div>
+              )}
+            </div>
+
+            <h3 style={{ marginTop: 20 }}>Delivery Details</h3>
+
+            <label className="input-label">Hostel *</label>
+            <select className="input" value={delivery.hostel} onChange={(e) => setDelivery({ ...delivery, hostel: e.target.value })}>
+              <option value="">Select hostel</option>
+              {HOSTEL_OPTIONS.map((h) => <option key={h} value={h}>{h}</option>)}
+            </select>
+
+            <label className="input-label">Pickup Gate *</label>
+            <select className="input" value={delivery.gate} onChange={(e) => setDelivery({ ...delivery, gate: e.target.value })}>
+              <option value="">Select gate</option>
+              {GATE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+
+            <label className="input-label">Special Instructions</label>
+            <textarea
+              className="input"
+              value={delivery.note}
+              onChange={(e) => setDelivery({ ...delivery, note: e.target.value })}
+              placeholder="e.g. Print pages 1-10 only, or staple together..."
+              rows={3}
+            />
+
+            <div className="print-nav-btns">
+              <button className="btn-secondary" onClick={() => setStep(2)}>Back</button>
+              <button className="btn-primary" disabled={loading} onClick={handleSubmit}>
+                {loading ? 'Placing Order...' : `Place Order (COD) ${priceCalc ? formatPrice(priceCalc.total) : ''}`}
+              </button>
+            </div>
           </div>
 
-          <h3 style={{ marginTop: 20 }}>Delivery Details</h3>
-
-          <label className="input-label">Hostel *</label>
-          <select className="input" value={delivery.hostel} onChange={(e) => setDelivery({ ...delivery, hostel: e.target.value })}>
-            <option value="">Select hostel</option>
-            {HOSTEL_OPTIONS.map((h) => <option key={h} value={h}>{h}</option>)}
-          </select>
-
-          <label className="input-label">Pickup Gate *</label>
-          <select className="input" value={delivery.gate} onChange={(e) => setDelivery({ ...delivery, gate: e.target.value })}>
-            <option value="">Select gate</option>
-            {GATE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
-          </select>
-
-          <label className="input-label">Special Instructions</label>
-          <textarea
-            className="input"
-            value={delivery.note}
-            onChange={(e) => setDelivery({ ...delivery, note: e.target.value })}
-            placeholder="e.g. Print pages 1-10 only, or staple together..."
-            rows={3}
-          />
-
-          <div className="print-nav-btns">
-            <button className="btn-secondary" onClick={() => setStep(2)}>Back</button>
-            <button className="btn-primary" disabled={loading} onClick={handleSubmit}>
-              {loading ? 'Placing Order...' : `Place Order (COD) ${priceCalc ? formatPrice(priceCalc.total) : ''}`}
-            </button>
-          </div>
+          <PricePreview />
         </div>
       )}
     </div>

@@ -20,6 +20,7 @@ import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrdersPage from './pages/OrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
+import PrintOrderDetailPage from './pages/PrintOrderDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import ProductPage from './pages/ProductPage';
 import SubCategoryPage from './pages/SubCategoryPage';
@@ -81,6 +82,9 @@ const CustomerLayout = () => {
           } />
           <Route path="/orders" element={
             <ProtectedRoute><OrdersPage /></ProtectedRoute>
+          } />
+          <Route path="/orders/print/:id" element={
+            <ProtectedRoute><PrintOrderDetailPage /></ProtectedRoute>
           } />
           <Route path="/orders/:id" element={
             <ProtectedRoute><OrderDetailPage /></ProtectedRoute>

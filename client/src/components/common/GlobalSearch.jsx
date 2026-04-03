@@ -209,6 +209,8 @@ const SearchResultCard = ({ product, onClick }) => {
   const { items, addItem, updateQty } = useCart();
   const cartItem = items.find((i) => i.product === product._id);
   const qty = cartItem?.quantity || 0;
+  const maxQty = product.stockQty > 0 ? product.stockQty : Infinity;
+  const atMax = qty >= maxQty;
 
   const discount = product.mrp && product.mrp > product.price
     ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
@@ -246,7 +248,7 @@ const SearchResultCard = ({ product, onClick }) => {
               <div className="qty-control">
                 <button onClick={() => updateQty(product._id, qty - 1)} aria-label="Decrease"><Minus size={12} /></button>
                 <span>{qty}</span>
-                <button onClick={() => updateQty(product._id, qty + 1)} aria-label="Increase"><Plus size={12} /></button>
+                <button onClick={() => updateQty(product._id, qty + 1)} aria-label="Increase" disabled={atMax} className={atMax ? 'qty-btn-disabled' : ''}><Plus size={12} /></button>
               </div>
             )}
           </div>

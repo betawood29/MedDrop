@@ -20,8 +20,8 @@ const DashboardStats = ({ stats }) => {
       <StatCard icon={ShoppingBag} label="Today's Orders" value={stats.todayOrders} color="#3b82f6" />
       <StatCard icon={IndianRupee} label="Today's Revenue" value={formatPrice(stats.todayRevenue)} color="#22c55e" />
       <StatCard icon={Clock} label="Pending Orders" value={stats.pendingOrders} color="#f59e0b" />
-      <StatCard icon={Package} label="Active Products" value={stats.totalProducts} color="#dc2626" />
-      <StatCard icon={Users} label="Total Users" value={stats.totalUsers} color="#d97706" />
+      <StatCard icon={Package} label="Active Products" value={stats.totalProducts} color="#7c3aed" />
+      <StatCard icon={Users} label="Total Users" value={stats.totalUsers} color="#eab308" />
       <StatCard
         icon={AlertTriangle}
         label="Out of Stock"

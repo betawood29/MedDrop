@@ -6,6 +6,8 @@ import { formatPrice } from '../../utils/formatters';
 
 const CartItem = ({ item }) => {
   const { updateQty, removeItem } = useCart();
+  const maxQty = item.stockQty > 0 ? item.stockQty : Infinity;
+  const atMax = item.quantity >= maxQty;
 
   return (
     <div className="cart-item">
@@ -20,6 +22,9 @@ const CartItem = ({ item }) => {
       <div className="cart-item-info">
         <h4>{item.name}</h4>
         <p className="cart-item-price">{formatPrice(item.price)}</p>
+        {item.stockQty > 0 && item.stockQty <= 5 && (
+          <span className="low-stock-text">Only {item.stockQty} left</span>
+        )}
       </div>
 
       <div className="cart-item-actions">
@@ -28,7 +33,7 @@ const CartItem = ({ item }) => {
             <Minus size={14} />
           </button>
           <span>{item.quantity}</span>
-          <button onClick={() => updateQty(item.product, item.quantity + 1)} aria-label="Increase">
+          <button onClick={() => updateQty(item.product, item.quantity + 1)} aria-label="Increase" disabled={atMax} className={atMax ? 'qty-btn-disabled' : ''}>
             <Plus size={14} />
           </button>
         </div>

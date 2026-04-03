@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { Printer, Pill, Coffee, ShoppingBag } from 'lucide-react';
 
 const actions = [
-  { icon: <Pill size={22} />, label: 'Medicines', color: '#dc2626', bg: '#fef2f2', path: '/category/medicines' },
-  { icon: <Coffee size={22} />, label: 'Snacks', color: '#d97706', bg: '#fffbeb', path: '/category/snacks' },
-  { icon: <Printer size={22} />, label: 'Print Store', color: '#b91c1c', bg: '#fef2f2', path: '/print-store' },
-  { icon: <ShoppingBag size={22} />, label: 'All Products', color: '#dc2626', bg: '#fef2f2', path: '/category/all' },
+  { icon: <Pill size={22} />, label: 'Medicines', color: '#7c3aed', bg: '#f5f0ff', path: '/category/medicines' },
+  { icon: <Coffee size={22} />, label: 'Snacks', color: '#eab308', bg: '#fefce8', path: '/category/snacks' },
+  { icon: <Printer size={22} />, label: 'Print Store', color: '#5b21b6', bg: '#ede9fe', path: '/print-store' },
+  { icon: <ShoppingBag size={22} />, label: 'All Products', color: '#7c3aed', bg: '#f5f0ff', path: '/category/all' },
 ];
 
 const QuickActions = () => {

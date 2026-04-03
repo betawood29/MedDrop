@@ -1,4 +1,4 @@
-// Checkout page — delivery form + order placement
+// Checkout page — delivery form + order summary + order placement
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -50,8 +50,16 @@ const CheckoutPage = () => {
         </button>
         <h2 className="page-title">Checkout</h2>
       </div>
-      <CartSummary />
-      <DeliveryForm onSubmit={handlePlaceOrder} loading={loading} />
+
+      <div className="checkout-layout">
+        <div className="checkout-left">
+          <DeliveryForm onSubmit={handlePlaceOrder} loading={loading} />
+        </div>
+
+        <div className="checkout-right">
+          <CartSummary />
+        </div>
+      </div>
     </div>
   );
 };

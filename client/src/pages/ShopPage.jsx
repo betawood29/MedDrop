@@ -9,18 +9,20 @@ import CategoryGrid from '../components/shop/CategoryGrid';
 import ProductCard from '../components/shop/ProductCard';
 import CartBar from '../components/shop/CartBar';
 import Loader from '../components/common/Loader';
-import { getCategories, getSubCategories, getTrendingByCategory } from '../services/productService';
+import { getCategories, getSubCategories, getTrendingByCategory, getTrendingProducts } from '../services/productService';
 import { useShopSocket } from '../hooks/useSocket';
 
 const ShopPage = () => {
   const [categories, setCategories] = useState([]);
   const [trendingSections, setTrendingSections] = useState([]);
+  const [trendingProducts, setTrendingProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [categoriesWithSubs, setCategoriesWithSubs] = useState(new Set());
   const navigate = useNavigate();
 
   useEffect(() => {
     getCategories().then((res) => setCategories(res.data.data)).catch(console.error);
+    getTrendingProducts(12).then((res) => setTrendingProducts(res.data.data)).catch(console.error);
     getSubCategories().then((res) => {
       const subs = res.data.data || [];
       const parentSlugs = new Set();
@@ -42,6 +44,9 @@ const ShopPage = () => {
 
   // Real-time product updates
   const handleProductUpdate = useCallback((updatedProduct) => {
+    setTrendingProducts((prev) =>
+      prev.map((p) => (p._id === updatedProduct._id ? { ...p, ...updatedProduct } : p))
+    );
     setTrendingSections((prev) =>
       prev.map((section) => ({
         ...section,
@@ -82,6 +87,23 @@ const ShopPage = () => {
           <span className="deals-banner-emoji">🛍️</span>
         </div>
       </div>
+
+      {/* Trending Products */}
+      {trendingProducts.length > 0 && (
+        <section className="home-section">
+          <div className="section-title-row">
+            <h2 className="section-heading">🔥 Trending Products</h2>
+            <button className="see-all-btn" onClick={() => navigate('/category/all')}>
+              See all
+            </button>
+          </div>
+          <div className="product-scroll-row">
+            {trendingProducts.map((product) => (
+              <ProductCard key={product._id} product={product} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Category-wise Trending Sections */}
       {loading ? (

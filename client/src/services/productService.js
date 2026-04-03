@@ -15,3 +15,5 @@ export const getSubCategoryProducts = (slug) => api.get(`/subcategories/${slug}/
 export const searchProducts = (q, limit = 20) => api.get('/search', { params: { q, limit } });
 
 export const getTrendingByCategory = (limit = 8) => api.get('/products/trending', { params: { limit } });
+
+export const getTrendingProducts = (limit = 12) => api.get('/products', { params: { limit, sort: '-createdAt', inStock: true } });

@@ -15,6 +15,15 @@ export const ORDER_STATUSES = {
   cancelled: { label: 'Cancelled', color: '#ef4444', step: -1 },
 };
 
+export const PRINT_ORDER_STATUSES = {
+  placed: { label: 'Placed', color: '#f59e0b', step: 0 },
+  printing: { label: 'Printing', color: '#3b82f6', step: 1 },
+  ready: { label: 'Ready', color: '#8b5cf6', step: 2 },
+  out: { label: 'Out for Delivery', color: '#f97316', step: 3 },
+  delivered: { label: 'Delivered', color: '#22c55e', step: 4 },
+  cancelled: { label: 'Cancelled', color: '#ef4444', step: -1 },
+};
+
 export const HOSTEL_OPTIONS = [
   'Hostel 1', 'Hostel 2', 'Hostel 3', 'Hostel 4', 'Hostel 5',
   'Hostel 6', 'Hostel 7', 'Hostel 8', 'Hostel 9', 'Hostel 10',

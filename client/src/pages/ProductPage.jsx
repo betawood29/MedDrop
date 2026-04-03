@@ -23,6 +23,8 @@ const ProductPage = () => {
 
   const cartItem = items.find((i) => i.product === product?._id);
   const qty = cartItem?.quantity || 0;
+  const maxQty = product?.stockQty > 0 ? product.stockQty : Infinity;
+  const atMax = qty >= maxQty;
 
   const discount = product?.mrp && product.mrp > product.price
     ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
@@ -134,7 +136,7 @@ const ProductPage = () => {
               <div className="pdp-qty-control">
                 <button onClick={() => updateQty(product._id, qty - 1)}><Minus size={16} /></button>
                 <span>{qty}</span>
-                <button onClick={() => updateQty(product._id, qty + 1)}><Plus size={16} /></button>
+                <button onClick={() => updateQty(product._id, qty + 1)} disabled={atMax} className={atMax ? 'qty-btn-disabled' : ''}><Plus size={16} /></button>
               </div>
             )}
           </div>
@@ -143,9 +145,9 @@ const ProductPage = () => {
         {/* Details chips */}
         <div className="pdp-details">
           {product.stockQty > 0 && product.inStock && (
-            <div className="pdp-chip">
+            <div className={`pdp-chip ${product.stockQty <= 5 ? 'warning' : ''}`}>
               <Package size={14} />
-              <span>{product.stockQty} in stock</span>
+              <span>{product.stockQty <= 5 ? `Only ${product.stockQty} left!` : `${product.stockQty} in stock`}</span>
             </div>
           )}
           {product.requiresPrescription && (

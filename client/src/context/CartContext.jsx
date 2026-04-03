@@ -24,9 +24,12 @@ export const CartProvider = ({ children }) => {
   const addItem = useCallback((product, qty = 1) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.product === product._id);
+      const maxQty = product.stockQty > 0 ? product.stockQty : Infinity;
       if (existing) {
         return prev.map((i) =>
-          i.product === product._id ? { ...i, quantity: i.quantity + qty } : i
+          i.product === product._id
+            ? { ...i, quantity: Math.min(i.quantity + qty, maxQty), stockQty: product.stockQty }
+            : i
         );
       }
       return [...prev, {
@@ -34,7 +37,8 @@ export const CartProvider = ({ children }) => {
         name: product.name,
         price: product.price,
         image: product.image,
-        quantity: qty,
+        quantity: Math.min(qty, maxQty),
+        stockQty: product.stockQty || 0,
       }];
     });
   }, []);
@@ -48,7 +52,11 @@ export const CartProvider = ({ children }) => {
       setItems((prev) => prev.filter((i) => i.product !== productId));
     } else {
       setItems((prev) =>
-        prev.map((i) => (i.product === productId ? { ...i, quantity } : i))
+        prev.map((i) => {
+          if (i.product !== productId) return i;
+          const maxQty = i.stockQty > 0 ? i.stockQty : Infinity;
+          return { ...i, quantity: Math.min(quantity, maxQty) };
+        })
       );
     }
   }, []);
