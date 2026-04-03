@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Phone, Building, MapPin } from 'lucide-react';
+import { LogOut, User, Phone, Building, MapPin, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { completeProfile } from '../services/authService';
@@ -41,7 +41,12 @@ const ProfilePage = () => {
 
   return (
     <div className="page-container">
-      <h2 className="page-title">Profile</h2>
+      <div className="page-header">
+        <button className="back-btn" onClick={() => navigate(-1)} aria-label="Go back">
+          <ArrowLeft size={20} />
+        </button>
+        <h2 className="page-title">Profile</h2>
+      </div>
 
       <div className="profile-card">
         {editing ? (

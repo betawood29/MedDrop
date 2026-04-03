@@ -1,5 +1,5 @@
-// Global search overlay — full-screen search accessible from any page
-// Debounced input, instant results, category chips, product rows with add-to-cart
+// Global search overlay — Blinkit-style full-screen search
+// Autocomplete suggestions, recent searches, product grid results
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,23 @@ import { useCart } from '../../hooks/useCart';
 import { formatPrice } from '../../utils/formatters';
 
 const POPULAR_SEARCHES = ['Dolo', 'Crocin', 'Band-Aid', 'Sanitizer', 'Protein', 'Notebook', 'Chips'];
+const RECENT_KEY = 'meddrop_recent_searches';
+const MAX_RECENT = 8;
+
+const getRecentSearches = () => {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; }
+  catch { return []; }
+};
+
+const addRecentSearch = (term) => {
+  const recent = getRecentSearches().filter((t) => t !== term);
+  recent.unshift(term);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
+};
+
+const clearRecentSearches = () => {
+  localStorage.removeItem(RECENT_KEY);
+};
 
 const GlobalSearch = ({ onClose }) => {
   const [query, setQuery] = useState('');
@@ -16,14 +33,13 @@ const GlobalSearch = ({ onClose }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [recentSearches, setRecentSearches] = useState(getRecentSearches());
   const inputRef = useRef(null);
   const timerRef = useRef(null);
   const navigate = useNavigate();
 
-  // Auto-focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
-    // Prevent body scroll
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
@@ -45,6 +61,7 @@ const GlobalSearch = ({ onClose }) => {
         setResults(data.products || []);
         setSuggestions(data.suggestions || []);
         setSearched(true);
+        if (query.trim().length >= 2) addRecentSearch(query.trim());
       } catch {
         setResults([]);
       } finally {
@@ -64,15 +81,16 @@ const GlobalSearch = ({ onClose }) => {
     navigate(`/category/${slug}`);
   };
 
-  const handlePopularClick = (term) => {
-    setQuery(term);
+  const handleClearRecent = () => {
+    clearRecentSearches();
+    setRecentSearches([]);
   };
 
   return (
     <div className="gs-overlay">
-      {/* Search header */}
+      {/* Search header — clean Blinkit-style */}
       <div className="gs-header">
-        <button className="gs-back" onClick={onClose}>
+        <button className="gs-back" onClick={onClose} aria-label="Close search">
           <ArrowLeft size={22} />
         </button>
         <div className="gs-input-wrap">
@@ -86,8 +104,8 @@ const GlobalSearch = ({ onClose }) => {
             onChange={(e) => setQuery(e.target.value)}
           />
           {query && (
-            <button className="gs-clear" onClick={() => setQuery('')}>
-              <X size={16} />
+            <button className="gs-clear" onClick={() => setQuery('')} aria-label="Clear">
+              <X size={18} />
             </button>
           )}
         </div>
@@ -95,18 +113,37 @@ const GlobalSearch = ({ onClose }) => {
 
       {/* Content */}
       <div className="gs-body">
-        {/* No query — show popular searches */}
+        {/* No query — show recent + popular searches */}
         {!query.trim() && (
-          <div className="gs-section">
-            <h4 className="gs-section-title">Popular Searches</h4>
-            <div className="gs-popular">
-              {POPULAR_SEARCHES.map((term) => (
-                <button key={term} className="gs-popular-chip" onClick={() => handlePopularClick(term)}>
-                  <Search size={13} /> {term}
-                </button>
-              ))}
+          <>
+            {recentSearches.length > 0 && (
+              <div className="gs-section">
+                <div className="gs-section-header">
+                  <h4 className="gs-section-title">Recent searches</h4>
+                  <button className="gs-section-clear" onClick={handleClearRecent}>clear</button>
+                </div>
+                <div className="gs-popular">
+                  {recentSearches.map((term) => (
+                    <button key={term} className="gs-popular-chip" onClick={() => setQuery(term)}>
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="gs-section">
+              <div className="gs-section-header">
+                <h4 className="gs-section-title">Popular searches</h4>
+              </div>
+              <div className="gs-popular">
+                {POPULAR_SEARCHES.map((term) => (
+                  <button key={term} className="gs-popular-chip" onClick={() => setQuery(term)}>
+                    <Search size={13} /> {term}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Loading */}
@@ -116,28 +153,28 @@ const GlobalSearch = ({ onClose }) => {
           </div>
         )}
 
-        {/* Category suggestions */}
+        {/* Category suggestions as rows */}
         {!loading && suggestions.length > 0 && (
-          <div className="gs-section">
-            <h4 className="gs-section-title">Categories</h4>
-            <div className="gs-cat-chips">
-              {suggestions.map((cat) => (
-                <button key={cat._id} className="gs-cat-chip" onClick={() => handleCategoryClick(cat.slug)}>
+          <div className="gs-suggestions">
+            {suggestions.map((cat) => (
+              <div key={cat._id} className="gs-suggestion-row" onClick={() => handleCategoryClick(cat.slug)}>
+                <div className="gs-suggestion-img">
                   {cat.image ? (
-                    <img src={cat.image} alt="" className="gs-cat-chip-img" />
+                    <img src={cat.image} alt="" />
                   ) : cat.icon ? (
-                    <span className="gs-cat-chip-icon">{cat.icon}</span>
-                  ) : null}
-                  {cat.name}
-                  <span className="gs-cat-count">{cat.count}</span>
-                  <ChevronRight size={14} />
-                </button>
-              ))}
-            </div>
+                    <span className="gs-suggestion-icon">{cat.icon}</span>
+                  ) : (
+                    <Search size={16} />
+                  )}
+                </div>
+                <span className="gs-suggestion-text">{cat.name}</span>
+                <ChevronRight size={16} style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Product results */}
+        {/* No results */}
         {!loading && searched && results.length === 0 && (
           <div className="gs-empty">
             <span>🔍</span>
@@ -145,12 +182,15 @@ const GlobalSearch = ({ onClose }) => {
           </div>
         )}
 
+        {/* Product results as grid cards */}
         {!loading && results.length > 0 && (
           <div className="gs-section">
-            <h4 className="gs-section-title">{results.length} result{results.length !== 1 ? 's' : ''}</h4>
-            <div className="gs-results">
+            <div className="gs-results-label">
+              Showing results for "{query}"
+            </div>
+            <div className="gs-results-grid">
               {results.map((product) => (
-                <SearchResultRow
+                <SearchResultCard
                   key={product._id}
                   product={product}
                   onClick={() => handleProductClick(product._id)}
@@ -164,8 +204,8 @@ const GlobalSearch = ({ onClose }) => {
   );
 };
 
-// Compact product row for search results
-const SearchResultRow = ({ product, onClick }) => {
+// Product card for search results grid
+const SearchResultCard = ({ product, onClick }) => {
   const { items, addItem, updateQty } = useCart();
   const cartItem = items.find((i) => i.product === product._id);
   const qty = cartItem?.quantity || 0;
@@ -175,40 +215,42 @@ const SearchResultRow = ({ product, onClick }) => {
     : 0;
 
   return (
-    <div className="gs-row">
-      <div className="gs-row-img" onClick={onClick}>
+    <div className="gs-result-card">
+      <div className="gs-result-card-img" onClick={onClick}>
         {product.image ? (
           <img src={product.image} alt={product.name} loading="lazy" />
         ) : (
-          <span className="gs-row-placeholder">{product.category?.icon || '📦'}</span>
+          <span className="gs-result-card-placeholder">{product.category?.icon || '📦'}</span>
         )}
-        {!product.inStock && <div className="gs-row-oos">OOS</div>}
+        {!product.inStock && <div className="gs-result-card-oos">Out of Stock</div>}
+        {discount > 0 && <div className="gs-result-card-discount">{discount}% OFF</div>}
       </div>
-
-      <div className="gs-row-info" onClick={onClick}>
-        <span className="gs-row-name">{product.name}</span>
-        {product.description && <span className="gs-row-desc">{product.description}</span>}
-        <div className="gs-row-pricing">
-          <span className="gs-row-price">{formatPrice(product.price)}</span>
-          {product.mrp && product.mrp > product.price && (
-            <span className="gs-row-mrp">{formatPrice(product.mrp)}</span>
-          )}
-          {discount > 0 && <span className="gs-row-discount">{discount}% off</span>}
+      <div className="gs-result-card-info">
+        <div className="gs-result-card-name" onClick={onClick} style={{ cursor: 'pointer' }}>
+          {product.name}
         </div>
-      </div>
-
-      <div className="gs-row-action">
-        {!product.inStock ? (
-          <span className="gs-row-unavail">—</span>
-        ) : qty === 0 ? (
-          <button className="gs-row-add" onClick={() => addItem(product)}>ADD</button>
-        ) : (
-          <div className="gs-row-qty">
-            <button onClick={() => updateQty(product._id, qty - 1)}><Minus size={12} /></button>
-            <span>{qty}</span>
-            <button onClick={() => updateQty(product._id, qty + 1)}><Plus size={12} /></button>
+        {product.description && <div className="gs-result-card-desc">{product.description}</div>}
+        <div className="gs-result-card-bottom">
+          <div className="gs-result-card-pricing">
+            <span className="gs-result-card-price">{formatPrice(product.price)}</span>
+            {product.mrp && product.mrp > product.price && (
+              <span className="gs-result-card-mrp">{formatPrice(product.mrp)}</span>
+            )}
           </div>
-        )}
+          <div className="gs-result-card-action">
+            {!product.inStock ? (
+              <span className="gs-result-unavail">—</span>
+            ) : qty === 0 ? (
+              <button className="btn-add" onClick={() => addItem(product)}>ADD</button>
+            ) : (
+              <div className="qty-control">
+                <button onClick={() => updateQty(product._id, qty - 1)} aria-label="Decrease"><Minus size={12} /></button>
+                <span>{qty}</span>
+                <button onClick={() => updateQty(product._id, qty + 1)} aria-label="Increase"><Plus size={12} /></button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

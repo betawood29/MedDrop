@@ -29,7 +29,7 @@ const CategoryGrid = ({ categories, categoriesWithSubs = new Set() }) => {
             className="category-card-wrap"
             onClick={() => handleClick(cat)}
           >
-            <div className="category-card" style={{ background: 'rgb(229 243 243)' }}>
+            <div className="category-card" style={{ background: '#fde8e8' }}>
               {cat.image ? (
                 <img className="category-card-img" src={cat.image} alt={cat.name} loading="lazy" />
               ) : (

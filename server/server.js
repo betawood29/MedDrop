@@ -23,7 +23,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const printRoutes = require('./routes/printRoutes');
-const { getCategories, getSubCategories, getSubCategoryProducts, searchProducts } = require('./controllers/productController');
+const { getCategories, getSubCategories, getSubCategoryProducts, searchProducts, getTrendingByCategory } = require('./controllers/productController');
 
 const app = express();
 const server = http.createServer(app);
@@ -78,6 +78,7 @@ require('fs').mkdirSync(uploadsDir, { recursive: true });
 
 // --- API Routes ---
 app.use('/api/auth', authRoutes);
+app.get('/api/products/trending', (req, res, next) => getTrendingByCategory(req, res, next));
 app.use('/api/products', productRoutes);
 app.use('/api/categories', (req, res, next) => getCategories(req, res, next));
 app.get('/api/search', (req, res, next) => searchProducts(req, res, next));

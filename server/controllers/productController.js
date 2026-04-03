@@ -208,4 +208,44 @@ const searchProducts = async (req, res, next) => {
   }
 };
 
-module.exports = { getProducts, getProduct, getCategories, getSubCategories, getSubCategoryProducts, searchProducts };
+// GET /api/products/trending — products grouped by category for homepage sections
+const getTrendingByCategory = async (req, res, next) => {
+  try {
+    const { limit = 8 } = req.query;
+    const parsedLimit = Math.min(20, Math.max(1, parseInt(limit) || 8));
+
+    // Get all active categories
+    const categories = await Category.find({ isActive: true })
+      .sort({ displayOrder: 1, name: 1 })
+      .lean();
+
+    // For each category, fetch top products (in-stock first, then by createdAt)
+    const sections = await Promise.all(
+      categories.map(async (cat) => {
+        const products = await Product.find({
+          category: cat._id,
+          isActive: true,
+        })
+          .populate('category', 'name slug icon')
+          .populate('subCategory', 'name slug')
+          .sort({ inStock: -1, createdAt: -1 })
+          .limit(parsedLimit)
+          .lean();
+
+        return {
+          category: cat,
+          products,
+        };
+      })
+    );
+
+    // Filter out categories with no products
+    const filtered = sections.filter((s) => s.products.length > 0);
+
+    ApiResponse.success(res, filtered);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getProducts, getProduct, getCategories, getSubCategories, getSubCategoryProducts, searchProducts, getTrendingByCategory };

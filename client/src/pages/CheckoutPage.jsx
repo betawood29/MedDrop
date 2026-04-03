@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CartSummary from '../components/cart/CartSummary';
 import DeliveryForm from '../components/cart/DeliveryForm';
@@ -43,7 +44,12 @@ const CheckoutPage = () => {
 
   return (
     <div className="page-container">
-      <h2 className="page-title">Checkout</h2>
+      <div className="page-header">
+        <button className="back-btn" onClick={() => navigate(-1)} aria-label="Go back">
+          <ArrowLeft size={20} />
+        </button>
+        <h2 className="page-title">Checkout</h2>
+      </div>
       <CartSummary />
       <DeliveryForm onSubmit={handlePlaceOrder} loading={loading} />
     </div>

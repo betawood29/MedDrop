@@ -1,7 +1,8 @@
 // Order detail page — full order info with real-time tracking via Socket.io
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import OrderDetailComponent from '../components/orders/OrderDetail';
 import Loader from '../components/common/Loader';
 import { getOrder } from '../services/orderService';
@@ -9,6 +10,7 @@ import { useSocket } from '../hooks/useSocket';
 
 const OrderDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,6 +42,12 @@ const OrderDetailPage = () => {
 
   return (
     <div className="page-container">
+      <div className="page-header">
+        <button className="back-btn" onClick={() => navigate(-1)} aria-label="Go back">
+          <ArrowLeft size={20} />
+        </button>
+        <h2 className="page-title">Order Details</h2>
+      </div>
       <OrderDetailComponent order={order} />
     </div>
   );

@@ -1,7 +1,7 @@
-// Sticky bottom cart bar — shows item count and total, tap to go to cart
+// Sticky bottom cart bar — red pill "View Cart" with item count and total
 
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag } from 'lucide-react';
+import { ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../../hooks/useCart';
 import { formatPrice } from '../../utils/formatters';
 
@@ -14,12 +14,13 @@ const CartBar = () => {
   return (
     <div className="cart-bar" onClick={() => navigate('/cart')}>
       <div className="cart-bar-left">
-        <ShoppingBag size={20} />
-        <span>{itemCount} item{itemCount > 1 ? 's' : ''}</span>
+        <ShoppingBag size={18} />
+        <span className="cart-bar-count">{itemCount}</span>
+        <span>View Cart</span>
       </div>
       <div className="cart-bar-right">
         <span>{formatPrice(total)}</span>
-        <span className="cart-bar-arrow">→</span>
+        <ArrowRight size={16} />
       </div>
     </div>
   );
