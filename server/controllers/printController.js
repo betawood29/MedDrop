@@ -54,6 +54,21 @@ const createPrintOrder = async (req, res, next) => {
       await printOrder.save();
     }
 
+    // Emit to admin room for live feed
+    try {
+      const { getIO } = require('../config/socket');
+      const io = getIO();
+      io.to('admin').emit('new-order', {
+        orderId: printOrder.orderId,
+        total: printOrder.total,
+        items: printOrder.files?.length || 0,
+        gate: printOrder.gate,
+        type: 'print',
+      });
+    } catch (socketErr) {
+      // Socket not initialized — ignore
+    }
+
     ApiResponse.created(res, {
       orderId: printOrder.orderId,
       totalPages: printOrder.totalPages,
@@ -81,16 +96,21 @@ const getPrintOrders = async (req, res, next) => {
   }
 };
 
-// GET /api/print/orders/:id — get single print order
+// GET /api/print/orders/:id — get single print order by orderId (PR000001) or _id
 const getPrintOrder = async (req, res, next) => {
   try {
-    const order = await PrintOrder.findOne({
-      $or: [
-        { _id: req.params.id },
-        { orderId: req.params.id.toUpperCase() },
-      ],
-      user: req.user._id,
-    });
+    const id = req.params.id;
+
+    // First try by orderId (e.g. PR000001) — most common path
+    let order = await PrintOrder.findOne({ orderId: id.toUpperCase(), user: req.user._id });
+
+    // Fallback: try by MongoDB _id only if it looks like a valid ObjectId
+    if (!order) {
+      const mongoose = require('mongoose');
+      if (mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === id) {
+        order = await PrintOrder.findOne({ _id: id, user: req.user._id });
+      }
+    }
 
     if (!order) throw ApiError.notFound('Print order not found');
     ApiResponse.success(res, order);

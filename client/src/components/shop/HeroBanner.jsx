@@ -9,7 +9,7 @@ const fallback = {
   title: 'Medicines & Essentials',
   highlight: 'delivered to your gate',
   subtitle: 'Chitkara University Campus Delivery',
-  image: '/bnr.png',
+  image: '/bnr.jpeg',
   link: '/category/all',
   features: ['Free above ₹299', '100% Genuine', '24/7 Available'],
 };
@@ -30,7 +30,7 @@ const HeroBanner = () => {
 
   return (
     <div className="hero-banner" onClick={() => navigate(banner.link || '/category/all')} style={{ cursor: 'pointer' }}>
-      <img src={banner.image || '/bnr.png'} alt="MedDrop Banner" loading="eager" />
+      <img src={banner.image || '/bnr.jpeg'} alt="MedDrop Banner" loading="eager" />
       <div className="hero-content">
         <div className="hero-delivery-tag">
           <Zap size={10} />

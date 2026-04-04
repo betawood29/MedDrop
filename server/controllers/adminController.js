@@ -161,6 +161,28 @@ const getDashboard = async (req, res, next) => {
       ]),
     ]);
 
+    // Print order stats
+    const PrintOrderModel = require('../models/PrintOrder');
+    const [
+      todayPrintOrders,
+      todayPrintRevAgg,
+      pendingPrintOrders,
+      rangePrintOrders,
+      rangePrintRevenueAgg,
+    ] = await Promise.all([
+      PrintOrderModel.countDocuments({ createdAt: { $gte: todayStart } }),
+      PrintOrderModel.aggregate([
+        { $match: { createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } } },
+        { $group: { _id: null, total: { $sum: '$total' } } },
+      ]),
+      PrintOrderModel.countDocuments({ status: 'placed' }),
+      PrintOrderModel.countDocuments(rangeMatch),
+      PrintOrderModel.aggregate([
+        { $match: rangeMatchNotCancelled },
+        { $group: { _id: null, total: { $sum: '$total' } } },
+      ]),
+    ]);
+
     // Format status breakdown into an object
     const statusBreakdown = {};
     orderStatusBreakdown.forEach((s) => { statusBreakdown[s._id] = s.count; });
@@ -172,19 +194,22 @@ const getDashboard = async (req, res, next) => {
     });
 
     ApiResponse.success(res, {
-      // Today
-      todayOrders,
-      todayRevenue: todayRevAgg[0]?.total || 0,
-      pendingOrders,
+      // Today (combined shop + print)
+      todayOrders: todayOrders + todayPrintOrders,
+      todayRevenue: (todayRevAgg[0]?.total || 0) + (todayPrintRevAgg[0]?.total || 0),
+      pendingOrders: pendingOrders + pendingPrintOrders,
+      // Today breakdown
+      todayShopOrders: todayOrders,
+      todayPrintOrders,
       // Inventory
       totalProducts,
       outOfStockProducts,
       // Users
       totalUsers,
-      // Range stats
+      // Range stats (combined)
       range: { from: rangeStart, to: rangeEnd },
-      rangeOrders,
-      rangeRevenue: rangeRevenueAgg[0]?.total || 0,
+      rangeOrders: rangeOrders + rangePrintOrders,
+      rangeRevenue: (rangeRevenueAgg[0]?.total || 0) + (rangePrintRevenueAgg[0]?.total || 0),
       rangeCancelledOrders,
       rangeDeliveredOrders,
       avgOrderValue: Math.round(avgOrderValueAgg[0]?.avg || 0),
@@ -194,6 +219,9 @@ const getDashboard = async (req, res, next) => {
       statusBreakdown,
       paymentBreakdown,
       peakHours: peakHoursAgg.map((h) => ({ hour: h._id, orders: h.count })),
+      // Print-specific
+      rangePrintOrders,
+      rangePrintRevenue: rangePrintRevenueAgg[0]?.total || 0,
     });
   } catch (err) {
     next(err);
@@ -618,6 +646,65 @@ const deleteSubCategory = async (req, res, next) => {
   }
 };
 
+// === PRINT ORDER ADMIN ===
+
+const PrintOrder = require('../models/PrintOrder');
+
+// GET /api/admin/print-orders — list all print orders
+const getAdminPrintOrders = async (req, res, next) => {
+  try {
+    const { status, date } = req.query;
+    const query = {};
+    if (status) query.status = status;
+    if (date === 'today') {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      query.createdAt = { $gte: todayStart };
+    }
+
+    const orders = await PrintOrder.find(query)
+      .populate('user', 'name phone hostel')
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    ApiResponse.success(res, orders);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// PATCH /api/admin/print-orders/:id — update print order status
+const updatePrintOrderStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ['placed', 'printing', 'ready', 'out', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      throw ApiError.badRequest('Invalid status');
+    }
+
+    const order = await PrintOrder.findById(req.params.id);
+    if (!order) throw ApiError.notFound('Print order not found');
+
+    order.status = status;
+    await order.save();
+
+    // Emit real-time update
+    try {
+      const { getIO } = require('../config/socket');
+      const io = getIO();
+      io.to('admin').emit('order-update', { orderId: order.orderId, status, type: 'print' });
+      // Notify the user's room if they're listening
+      io.emit(`order-${order.orderId}`, { status, orderId: order.orderId });
+    } catch (socketErr) {
+      // Socket not initialized
+    }
+
+    ApiResponse.success(res, order, `Status updated to ${status}`);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   adminLogin,
   getDashboard,
@@ -637,4 +724,6 @@ module.exports = {
   createSubCategory,
   updateSubCategory,
   deleteSubCategory,
+  getAdminPrintOrders,
+  updatePrintOrderStatus,
 };

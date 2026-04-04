@@ -23,6 +23,8 @@ const {
   createSubCategory,
   updateSubCategory,
   deleteSubCategory,
+  getAdminPrintOrders,
+  updatePrintOrderStatus,
 } = require('../controllers/adminController');
 const { uploadExcel, downloadTemplate } = require('../controllers/uploadController');
 const { getCategories } = require('../controllers/productController');
@@ -78,5 +80,9 @@ router.post('/banner', createBanner);
 router.put('/banner/:id', updateBanner);
 router.delete('/banner/:id', deleteBanner);
 router.post('/banner/upload-image', imageUpload.single('image'), uploadBannerImage);
+
+// Print order management
+router.get('/print-orders', getAdminPrintOrders);
+router.patch('/print-orders/:id', updatePrintOrderStatus);
 
 module.exports = router;

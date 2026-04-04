@@ -4,10 +4,10 @@ import { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import DashboardStats from '../../components/admin/DashboardStats';
 import Loader from '../../components/common/Loader';
-import { getDashboard, getAdminOrders, updateOrderStatus } from '../../services/adminService';
+import { getDashboard, getAdminOrders, updateOrderStatus, getAdminPrintOrders, updatePrintOrderStatus } from '../../services/adminService';
 import { useAdminSocket } from '../../hooks/useSocket';
 import { formatPrice, timeAgo, formatDate } from '../../utils/formatters';
-import { ORDER_STATUSES } from '../../utils/constants';
+import { ORDER_STATUSES, PRINT_ORDER_STATUSES } from '../../utils/constants';
 import {
   ShoppingBag, IndianRupee, Clock, Package, Users, TrendingUp,
   AlertTriangle, CheckCircle, XCircle, BarChart3, Star, Zap,
@@ -23,6 +23,7 @@ const RANGE_OPTIONS = [
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
+  const [recentPrintOrders, setRecentPrintOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('7d');
   const [customFrom, setCustomFrom] = useState('');
@@ -38,12 +39,14 @@ const AdminDashboard = () => {
   const fetchData = async (showLoader = false) => {
     if (showLoader) setLoading(true);
     try {
-      const [statsRes, ordersRes] = await Promise.all([
+      const [statsRes, ordersRes, printOrdersRes] = await Promise.all([
         getDashboard(rangeParams),
         getAdminOrders({ date: 'today', limit: 10 }),
+        getAdminPrintOrders({ date: 'today' }).catch(() => ({ data: { data: [] } })),
       ]);
       setStats(statsRes.data.data);
       setRecentOrders(ordersRes.data.data);
+      setRecentPrintOrders(printOrdersRes.data.data || []);
     } catch (err) {
       toast.error('Failed to load dashboard');
     } finally {
@@ -69,6 +72,16 @@ const AdminDashboard = () => {
       fetchData();
     } catch (err) {
       toast.error('Failed to update order');
+    }
+  };
+
+  const handlePrintStatusChange = async (orderId, status) => {
+    try {
+      await updatePrintOrderStatus(orderId, status);
+      toast.success(`Print order updated to ${PRINT_ORDER_STATUSES[status].label}`);
+      fetchData();
+    } catch (err) {
+      toast.error('Failed to update print order');
     }
   };
 
@@ -281,11 +294,11 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          {/* Recent orders */}
+          {/* Recent shop orders */}
           <div className="db-card" style={{ marginTop: 20 }}>
-            <h3 className="db-card-title"><ShoppingBag size={18} /> Recent Orders (Today)</h3>
+            <h3 className="db-card-title"><ShoppingBag size={18} /> Recent Shop Orders (Today)</h3>
             {recentOrders.length === 0 ? (
-              <p className="text-muted">No orders today</p>
+              <p className="text-muted">No shop orders today</p>
             ) : (
               <div className="db-recent-orders">
                 {recentOrders.map((order) => (
@@ -303,6 +316,37 @@ const AdminDashboard = () => {
                       style={{ color: ORDER_STATUSES[order.status]?.color }}
                     >
                       {Object.entries(ORDER_STATUSES).map(([key, val]) => (
+                        <option key={key} value={key}>{val.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Recent print orders */}
+          <div className="db-card" style={{ marginTop: 20 }}>
+            <h3 className="db-card-title"><Package size={18} /> Recent Print Orders (Today)</h3>
+            {recentPrintOrders.length === 0 ? (
+              <p className="text-muted">No print orders today</p>
+            ) : (
+              <div className="db-recent-orders">
+                {recentPrintOrders.map((order) => (
+                  <div key={order._id} className="db-order-row">
+                    <span className="db-order-id">#{order.orderId}</span>
+                    <span className="db-order-customer">{order.user?.name}</span>
+                    <span className="db-order-items">{order.totalPages}pg x{order.config?.copies || 1}</span>
+                    <span className="db-order-total">{formatPrice(order.total)}</span>
+                    <span className="db-order-gate">{order.gate}</span>
+                    <span className="db-order-time">{timeAgo(order.createdAt)}</span>
+                    <select
+                      value={order.status}
+                      onChange={(e) => handlePrintStatusChange(order._id, e.target.value)}
+                      className="db-order-status"
+                      style={{ color: PRINT_ORDER_STATUSES[order.status]?.color }}
+                    >
+                      {Object.entries(PRINT_ORDER_STATUSES).map(([key, val]) => (
                         <option key={key} value={key}>{val.label}</option>
                       ))}
                     </select>

@@ -93,3 +93,10 @@ export const uploadSubCategoryImage = (formData) =>
     ...adminApi(),
     headers: { ...adminApi().headers, 'Content-Type': 'multipart/form-data' },
   });
+
+// Print order management
+export const getAdminPrintOrders = (params) =>
+  api.get('/admin/print-orders', { ...adminApi(), params });
+
+export const updatePrintOrderStatus = (id, status) =>
+  api.patch(`/admin/print-orders/${id}`, { status }, adminApi());
