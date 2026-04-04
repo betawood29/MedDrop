@@ -1,39 +1,78 @@
-// Admin sidebar navigation — desktop sidebar / mobile top tabs
+// Admin sidebar navigation — with separate shop/print order notification badges
 
-import { NavLink } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, ShoppingBag, Package, Upload, FolderTree, Image, LogOut } from 'lucide-react';
+import io from 'socket.io-client';
 
-const links = [
-  { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { to: '/admin/orders', icon: ShoppingBag, label: 'Orders' },
-  { to: '/admin/products', icon: Package, label: 'Products' },
-  { to: '/admin/upload', icon: Upload, label: 'Excel Upload' },
-  { to: '/admin/categories', icon: FolderTree, label: 'Categories' },
-  { to: '/admin/banner', icon: Image, label: 'Banner' },
-];
+const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
 const AdminSidebar = ({ onLogout }) => {
+  const [shopCount, setShopCount] = useState(0);
+  const [printCount, setPrintCount] = useState(0);
+  const socketRef = useRef(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socketRef.current = socket;
+    socket.on('connect', () => socket.emit('join-admin'));
+    socket.on('new-order', (data) => {
+      if (data?.type === 'print') {
+        setPrintCount((c) => c + 1);
+      } else {
+        setShopCount((c) => c + 1);
+      }
+    });
+    return () => socket.disconnect();
+  }, []);
+
+  // Clear badges when visiting orders page
+  useEffect(() => {
+    if (location.pathname.startsWith('/admin/orders')) {
+      setShopCount(0);
+      setPrintCount(0);
+    }
+  }, [location.pathname]);
+
+  const totalBadge = shopCount + printCount;
+
   return (
     <aside className="admin-sidebar">
       <div className="admin-sidebar-brand">
         <span>💊</span> MedDrop Admin
       </div>
       <nav className="admin-nav">
-        {links.map(({ to, icon: Icon, label, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
-          >
-            <Icon size={18} />
-            <span>{label}</span>
-          </NavLink>
-        ))}
+        <NavLink to="/admin" end className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
+          <LayoutDashboard size={18} /><span>Dashboard</span>
+        </NavLink>
+
+        <NavLink to="/admin/orders" className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
+          <ShoppingBag size={18} />
+          <span>Orders</span>
+          {totalBadge > 0 && (
+            <span className="admin-badge-group">
+              {shopCount > 0 && <span className="admin-badge shop" title="Shop orders">{shopCount}</span>}
+              {printCount > 0 && <span className="admin-badge print" title="Print orders">{printCount}</span>}
+            </span>
+          )}
+        </NavLink>
+
+        <NavLink to="/admin/products" className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
+          <Package size={18} /><span>Products</span>
+        </NavLink>
+        <NavLink to="/admin/upload" className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
+          <Upload size={18} /><span>Excel Upload</span>
+        </NavLink>
+        <NavLink to="/admin/categories" className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
+          <FolderTree size={18} /><span>Categories</span>
+        </NavLink>
+        <NavLink to="/admin/banner" className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
+          <Image size={18} /><span>Banner</span>
+        </NavLink>
       </nav>
       <button className="admin-nav-item logout" onClick={onLogout}>
-        <LogOut size={18} />
-        <span>Logout</span>
+        <LogOut size={18} /><span>Logout</span>
       </button>
     </aside>
   );

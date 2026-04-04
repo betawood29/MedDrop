@@ -14,31 +14,49 @@ const createPrintOrder = async (req, res, next) => {
       throw ApiError.badRequest('At least one file is required');
     }
 
-    const { copies = 1, colorMode = 'bw', sides = 'single', paperSize = 'A4', totalPages, hostel, gate, note } = req.body;
+    const { hostel, gate, note, fileConfigs } = req.body;
 
-    if (!totalPages || totalPages < 1) {
-      throw ApiError.badRequest('Total pages is required');
-    }
     if (!hostel || !gate) {
       throw ApiError.badRequest('Hostel and gate are required');
     }
 
-    const files = req.files.map((f) => ({
-      originalName: f.originalname,
-      url: `/uploads/${f.filename}`,
-      size: f.size,
-    }));
+    // Parse per-file config sent as JSON string
+    let perFileConfigs = [];
+    try {
+      perFileConfigs = fileConfigs ? JSON.parse(fileConfigs) : [];
+    } catch {
+      perFileConfigs = [];
+    }
+
+    const files = req.files.map((f, i) => {
+      const cfg = perFileConfigs[i] || {};
+      return {
+        originalName: f.originalname,
+        url: `/uploads/${f.filename}`,
+        size: f.size,
+        pages: Math.max(1, parseInt(cfg.pages) || 1),
+        copies: Math.min(50, Math.max(1, parseInt(cfg.copies) || 1)),
+        colorMode: ['bw', 'color'].includes(cfg.colorMode) ? cfg.colorMode : 'bw',
+        sides: ['single', 'double'].includes(cfg.sides) ? cfg.sides : 'single',
+        orientation: ['portrait', 'landscape'].includes(cfg.orientation) ? cfg.orientation : 'portrait',
+      };
+    });
+
+    const totalPages = files.reduce((sum, f) => sum + f.pages * f.copies, 0);
+    if (totalPages < 1) {
+      throw ApiError.badRequest('Total pages must be at least 1');
+    }
 
     const printOrder = new PrintOrder({
       user: req.user._id,
       files,
       config: {
-        copies: Math.min(Math.max(parseInt(copies) || 1, 1), 50),
-        colorMode,
-        sides,
-        paperSize,
+        copies: files[0]?.copies || 1,
+        colorMode: files[0]?.colorMode || 'bw',
+        sides: files[0]?.sides || 'single',
+        paperSize: 'A4',
       },
-      totalPages: parseInt(totalPages),
+      totalPages,
       hostel,
       gate,
       note,

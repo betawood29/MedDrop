@@ -1,4 +1,4 @@
-// Print order detail component — shows print config, files, tracker, delivery, and payment
+// Print order detail component — per-file details, tracker, delivery, and payment
 
 import PrintOrderTracker from './PrintOrderTracker';
 import { formatPrice, formatDateTime } from '../../utils/formatters';
@@ -29,46 +29,48 @@ const PrintOrderDetail = ({ order }) => {
 
       <PrintOrderTracker status={order.status} />
 
-      {/* Print Configuration */}
+      {/* Summary chips */}
       <div className="order-detail-section">
-        <h3>Print Settings</h3>
+        <h3>Order Summary</h3>
         <div className="print-config-grid">
           <div className="print-config-chip">
-            <span>Pages</span>
+            <span>Total Pages</span>
             <span>{order.totalPages}</span>
           </div>
           <div className="print-config-chip">
-            <span>Copies</span>
-            <span>{order.config?.copies || 1}</span>
+            <span>Files</span>
+            <span>{(order.files || []).length}</span>
           </div>
           <div className="print-config-chip">
-            <span>Mode</span>
-            <span>{order.config?.colorMode === 'color' ? 'Color' : 'Black & White'}</span>
+            <span>Subtotal</span>
+            <span>{formatPrice(order.subtotal)}</span>
           </div>
           <div className="print-config-chip">
-            <span>Sides</span>
-            <span>{order.config?.sides === 'double' ? 'Double-sided' : 'Single-sided'}</span>
-          </div>
-          <div className="print-config-chip">
-            <span>Paper</span>
-            <span>{order.config?.paperSize || 'A4'}</span>
-          </div>
-          <div className="print-config-chip">
-            <span>Per Page</span>
-            <span>{formatPrice(order.pricePerPage)}</span>
+            <span>Delivery</span>
+            <span>{order.deliveryFee === 0 ? 'FREE' : formatPrice(order.deliveryFee)}</span>
           </div>
         </div>
       </div>
 
-      {/* Files */}
+      {/* Per-file details */}
       <div className="order-detail-section">
         <h3>Files ({(order.files || []).length})</h3>
-        <div className="print-detail-files">
+        <div className="pod-file-list">
           {(order.files || []).map((file, i) => (
-            <div key={i} className="print-detail-file">
-              <span className="print-detail-file-icon">{getFileIcon(file.originalName)}</span>
-              <span className="print-detail-file-name">{file.originalName}</span>
-              <span className="print-detail-file-size">{formatBytes(file.size)}</span>
+            <div key={i} className="pod-file-card">
+              <div className="pod-file-left">
+                <span className="pod-file-icon">{getFileIcon(file.originalName)}</span>
+                <div className="pod-file-info">
+                  <strong className="pod-file-name">File {i + 1} — {file.originalName}</strong>
+                  {file.size > 0 && <span className="pod-file-size">{formatBytes(file.size)}</span>}
+                </div>
+              </div>
+              <div className="pod-file-config">
+                <div className="pod-tag">{file.pages || 1} pg × {file.copies || 1} copies</div>
+                <div className="pod-tag">{file.colorMode === 'color' ? 'Color' : 'B&W'}</div>
+                <div className="pod-tag">{file.sides === 'double' ? 'Double-sided' : 'Single'}</div>
+                <div className="pod-tag">{file.orientation === 'landscape' ? 'Landscape' : 'Portrait'}</div>
+              </div>
             </div>
           ))}
         </div>

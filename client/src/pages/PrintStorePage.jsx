@@ -1,35 +1,42 @@
-// Print Store page — Blinkit-style print/photocopy service
-// Upload files, configure print settings, see pricing, place order
+// Print Store page — Blinkit-inspired print service
+// Upload files with preview cards, configure per-file settings, sticky price bar
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, FileText, X, Printer, Copy, Palette, Layers, File } from 'lucide-react';
+import { ArrowLeft, Upload, X, Printer, Palette, File, Plus, Minus, ShieldCheck, Monitor, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { getPricing, createPrintOrder } from '../services/printService';
 import { GATE_OPTIONS, HOSTEL_OPTIONS } from '../utils/constants';
 import { formatPrice } from '../utils/formatters';
 
+const getFileIcon = (name) => {
+  const ext = name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') return '📄';
+  if (['jpg', 'jpeg', 'png'].includes(ext)) return '🖼️';
+  if (['doc', 'docx'].includes(ext)) return '📝';
+  if (['ppt', 'pptx'].includes(ext)) return '📊';
+  return '📎';
+};
+
 const PrintStorePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [pricing, setPricing] = useState(null);
-  const [files, setFiles] = useState([]);
-  const [config, setConfig] = useState({
-    copies: 1,
-    colorMode: 'bw',
-    sides: 'single',
-    paperSize: 'A4',
-    totalPages: '',
-  });
+  const [uploading, setUploading] = useState(false);
+
+  // Each file has: { file, pages, copies, colorMode, sides }
+  const [fileItems, setFileItems] = useState([]);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
   const [delivery, setDelivery] = useState({
     hostel: user?.hostel || '',
     gate: user?.preferredGate || '',
     note: '',
   });
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1: upload, 2: configure, 3: review
+  const [showCheckout, setShowCheckout] = useState(false);
 
   useEffect(() => {
     getPricing().then((res) => setPricing(res.data.data)).catch(console.error);
@@ -37,56 +44,65 @@ const PrintStorePage = () => {
 
   const handleFileChange = (e) => {
     const newFiles = Array.from(e.target.files);
-    setFiles((prev) => [...prev, ...newFiles].slice(0, 10));
-    e.target.value = '';
+    setUploading(true);
+    setTimeout(() => {
+      const items = newFiles.map((f) => ({
+        file: f,
+        preview: f.type.startsWith('image/') ? URL.createObjectURL(f) : null,
+        pages: 1,
+        copies: 1,
+        colorMode: 'bw',
+        sides: 'single',
+        orientation: 'portrait',
+      }));
+      setFileItems((prev) => {
+        const merged = [...prev, ...items].slice(0, 10);
+        setSelectedIdx(prev.length); // select first new file
+        return merged;
+      });
+      setUploading(false);
+      e.target.value = '';
+    }, 300);
   };
 
   const removeFile = (index) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setFileItems((prev) => prev.filter((_, i) => i !== index));
+    if (selectedIdx >= index && selectedIdx > 0) setSelectedIdx(selectedIdx - 1);
   };
 
-  const getFileIcon = (name) => {
-    const ext = name.split('.').pop().toLowerCase();
-    if (ext === 'pdf') return '📄';
-    if (['jpg', 'jpeg', 'png'].includes(ext)) return '🖼️';
-    if (['doc', 'docx'].includes(ext)) return '📝';
-    if (['ppt', 'pptx'].includes(ext)) return '📊';
-    return '📎';
+  const updateFile = (index, field, value) => {
+    setFileItems((prev) => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
   };
 
-  const calculatePrice = () => {
-    if (!pricing || !config.totalPages) return null;
-    const pages = parseInt(config.totalPages) || 0;
-    const copies = parseInt(config.copies) || 1;
-    const priceInfo = pricing[config.colorMode];
-    const pricePerPage = config.sides === 'double' ? priceInfo.double : priceInfo.single;
-    const subtotal = Math.round(pages * copies * pricePerPage);
-    const deliveryFee = subtotal >= pricing.freeDeliveryMin ? 0 : pricing.deliveryFee;
-    return { pricePerPage, subtotal, deliveryFee, total: subtotal + deliveryFee, pages, copies };
-  };
-
-  const priceCalc = calculatePrice();
+  // Calculate totals
+  const totalPages = fileItems.reduce((sum, f) => sum + (f.pages * f.copies), 0);
+  const totalPrice = fileItems.reduce((sum, f) => {
+    if (!pricing) return sum;
+    const priceInfo = pricing[f.colorMode];
+    const ppp = f.sides === 'double' ? priceInfo.double : priceInfo.single;
+    return sum + Math.round(f.pages * f.copies * ppp);
+  }, 0);
+  const deliveryFee = pricing ? (totalPrice >= pricing.freeDeliveryMin ? 0 : pricing.deliveryFee) : 25;
+  const grandTotal = totalPrice + deliveryFee;
 
   const handleSubmit = async () => {
-    if (!user) {
-      toast('Please login first');
-      navigate('/login');
-      return;
-    }
-
-    if (files.length === 0) { toast.error('Please upload at least one file'); return; }
-    if (!config.totalPages || config.totalPages < 1) { toast.error('Enter total pages'); return; }
+    if (!user) { toast('Please login first'); navigate('/login'); return; }
+    if (fileItems.length === 0) { toast.error('Upload at least one file'); return; }
     if (!delivery.hostel || !delivery.gate) { toast.error('Select hostel and gate'); return; }
 
     setLoading(true);
     try {
       const formData = new FormData();
-      files.forEach((f) => formData.append('files', f));
-      formData.append('copies', config.copies);
-      formData.append('colorMode', config.colorMode);
-      formData.append('sides', config.sides);
-      formData.append('paperSize', config.paperSize);
-      formData.append('totalPages', config.totalPages);
+      fileItems.forEach((f) => formData.append('files', f.file));
+      // Send per-file config as JSON
+      const fileConfigs = fileItems.map((f) => ({
+        pages: f.pages,
+        copies: f.copies,
+        colorMode: f.colorMode,
+        sides: f.sides,
+        orientation: f.orientation,
+      }));
+      formData.append('fileConfigs', JSON.stringify(fileConfigs));
       formData.append('hostel', delivery.hostel);
       formData.append('gate', delivery.gate);
       formData.append('note', delivery.note);
@@ -101,34 +117,7 @@ const PrintStorePage = () => {
     }
   };
 
-  // Price preview sidebar content (reused in steps 2 & 3)
-  const PricePreview = () => priceCalc ? (
-    <div className="print-section-sidebar">
-      <h3>Price Estimate</h3>
-      <div className="print-price-preview" style={{ margin: 0 }}>
-        <div className="summary-row">
-          <span>{priceCalc.pages} pages x {priceCalc.copies} copies x {formatPrice(priceCalc.pricePerPage)}</span>
-          <span>{formatPrice(priceCalc.subtotal)}</span>
-        </div>
-        <div className="summary-row">
-          <span>Delivery</span>
-          <span className={priceCalc.deliveryFee === 0 ? 'text-green' : ''}>
-            {priceCalc.deliveryFee === 0 ? 'FREE' : formatPrice(priceCalc.deliveryFee)}
-          </span>
-        </div>
-        <div className="summary-row summary-total">
-          <span>Total</span>
-          <span>{formatPrice(priceCalc.total)}</span>
-        </div>
-      </div>
-      {/* File summary */}
-      <div style={{ marginTop: 16, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-        <strong>{files.length} file{files.length !== 1 ? 's' : ''}</strong> uploaded
-        <br />
-        {config.colorMode === 'bw' ? 'Black & White' : 'Color'} · {config.sides === 'single' ? 'Single-sided' : 'Double-sided'} · {config.paperSize}
-      </div>
-    </div>
-  ) : null;
+  const selected = fileItems[selectedIdx];
 
   return (
     <div className="page-container print-store">
@@ -139,227 +128,300 @@ const PrintStorePage = () => {
         <h2 className="category-page-title">Print Store</h2>
       </div>
 
-      {/* Pricing info banner */}
-      <div className="print-pricing-banner">
-        <Printer size={20} />
-        <div>
-          <strong>B&W: ₹2/page</strong> &middot; <strong>Color: ₹5/page</strong>
-          <p>Double-sided available &middot; Free delivery above ₹299</p>
-        </div>
+      {/* Privacy banner */}
+      <div className="ps-privacy-banner">
+        <ShieldCheck size={16} />
+        <span>We will delete your files once delivered</span>
       </div>
 
-      {/* Step indicators */}
-      <div className="print-steps">
-        <div className={`print-step ${step >= 1 ? 'active' : ''}`} onClick={() => setStep(1)}>
-          <span className="print-step-num">1</span> Upload
-        </div>
-        <div className={`print-step-line ${step >= 2 ? 'active' : ''}`} />
-        <div className={`print-step ${step >= 2 ? 'active' : ''}`} onClick={() => files.length > 0 && setStep(2)}>
-          <span className="print-step-num">2</span> Configure
-        </div>
-        <div className={`print-step-line ${step >= 3 ? 'active' : ''}`} />
-        <div className={`print-step ${step >= 3 ? 'active' : ''}`} onClick={() => files.length > 0 && config.totalPages && setStep(3)}>
-          <span className="print-step-num">3</span> Order
-        </div>
-      </div>
-
-      {/* Step 1: Upload Files */}
-      {step === 1 && (
-        <div className="print-section">
-          <h3><Upload size={18} /> Upload Your Files</h3>
-          <p className="text-muted">PDF, DOC, DOCX, JPG, PNG, PPT (max 20MB each, up to 10 files)</p>
-
-          <div className="print-dropzone" onClick={() => fileInputRef.current?.click()}>
-            <Upload size={32} />
-            <p>Tap to upload files</p>
-            <span className="text-muted">or drag and drop</span>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.ppt,.pptx"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-          />
-
-          {files.length > 0 && (
-            <div className="print-file-list">
-              {files.map((file, i) => (
-                <div key={i} className="print-file-item">
-                  <span className="print-file-icon">{getFileIcon(file.name)}</span>
-                  <div className="print-file-info">
-                    <span className="print-file-name">{file.name}</span>
-                    <span className="text-muted">{(file.size / 1024).toFixed(0)} KB</span>
-                  </div>
-                  <button className="icon-btn-sm danger" onClick={() => removeFile(i)}><X size={16} /></button>
-                </div>
-              ))}
+      {/* File preview cards — horizontal scroll */}
+      {fileItems.length > 0 && (
+        <div className="ps-file-scroll">
+          {fileItems.map((item, i) => (
+            <div
+              key={i}
+              className={`ps-file-card ${selectedIdx === i ? 'selected' : ''}`}
+              onClick={() => setSelectedIdx(i)}
+            >
+              <button className="ps-file-remove" onClick={(e) => { e.stopPropagation(); removeFile(i); }}>
+                <X size={14} />
+              </button>
+              <div className="ps-file-thumb">
+                {item.preview ? (
+                  <img src={item.preview} alt={item.file.name} />
+                ) : (
+                  <span className="ps-file-icon">{getFileIcon(item.file.name)}</span>
+                )}
+              </div>
+              <span className="ps-file-label">File {i + 1} ({item.pages} page{item.pages !== 1 ? 's' : ''})</span>
             </div>
-          )}
+          ))}
 
-          <button
-            className="btn-primary"
-            disabled={files.length === 0}
-            onClick={() => setStep(2)}
-          >
-            Continue to Configure
-          </button>
+          {/* Add files card */}
+          <div className="ps-file-card ps-add-card" onClick={() => fileInputRef.current?.click()}>
+            <div className="ps-file-thumb">
+              <Plus size={24} />
+            </div>
+            <span className="ps-file-label">Add files</span>
+          </div>
         </div>
       )}
 
-      {/* Step 2: Configure */}
-      {step === 2 && (
-        <div className="print-section-layout">
-          <div className="print-section print-section-main">
-            <h3><Layers size={18} /> Print Settings</h3>
+      {/* Landing state — shown when no files */}
+      {fileItems.length === 0 && (
+        <>
+          {/* Hero */}
+          <div className="ps-hero">
+            <div className="ps-hero-icon">🖨️</div>
+            <h2>Print Store</h2>
+            <p>Get your documents printed & delivered to your hostel gate</p>
+          </div>
 
-            <label className="input-label">Total Pages (across all files)</label>
-            <input
-              type="number"
-              className="input"
-              value={config.totalPages}
-              onChange={(e) => setConfig({ ...config, totalPages: e.target.value })}
-              placeholder="e.g. 25"
-              min="1"
-            />
+          {/* Upload card */}
+          <div className="ps-upload-card" onClick={() => fileInputRef.current?.click()}>
+            <div className="ps-upload-card-icon"><Upload size={28} /></div>
+            <div>
+              <strong>Upload your files</strong>
+              <p>We support PDF, DOC, DOCX, JPG, PNG, PPT etc</p>
+            </div>
+          </div>
 
-            <label className="input-label">Number of Copies</label>
+          <div className="print-dropzone" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={32} />
+            <p>Drop files here</p>
+            <span className="text-muted">Maximum upload file size: 20 MB · Up to 10 files</span>
+          </div>
+
+          {/* Pricing cards */}
+          <div className="ps-pricing-grid">
+            <div className="ps-pricing-card">
+              <div className="ps-pricing-icon"><Palette size={20} /></div>
+              <strong>Coloured</strong>
+              <span className="ps-pricing-price">₹5/page</span>
+            </div>
+            <div className="ps-pricing-card">
+              <div className="ps-pricing-icon"><File size={20} /></div>
+              <strong>Black & White</strong>
+              <span className="ps-pricing-price">₹2/page</span>
+            </div>
+            <div className="ps-pricing-card">
+              <div className="ps-pricing-icon">📄</div>
+              <strong>Double Sided</strong>
+              <span className="ps-pricing-price">25% off</span>
+            </div>
+          </div>
+
+          {/* Why section */}
+          <div className="ps-why-section">
+            <h3>Why try print store?</h3>
+            <div className="ps-why-grid">
+              <div className="ps-why-item">
+                <span>🚀</span>
+                <div><strong>Fast Delivery</strong><p>Delivered to your gate in 30–60 mins</p></div>
+              </div>
+              <div className="ps-why-item">
+                <span>🔒</span>
+                <div><strong>Safe & Secure</strong><p>Files deleted after delivery</p></div>
+              </div>
+              <div className="ps-why-item">
+                <span>💰</span>
+                <div><strong>Best Prices</strong><p>Starting at just ₹2/page</p></div>
+              </div>
+              <div className="ps-why-item">
+                <span>🎯</span>
+                <div><strong>High Quality</strong><p>Crisp, clear prints every time</p></div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.ppt,.pptx"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+
+      {/* Per-file configuration */}
+      {selected && !showCheckout && (
+        <div className="ps-config-section">
+          <div className="ps-config-header">
+            <h3>File {selectedIdx + 1} ({selected.pages} page{selected.pages !== 1 ? 's' : ''})</h3>
+            <span className="text-muted">{selected.file.name}</span>
+          </div>
+
+          <div className="ps-config-divider" />
+
+          {/* Pages */}
+          <div className="ps-config-row">
+            <div>
+              <strong>Number of pages</strong>
+              <span className="text-muted ps-config-sub">Enter total pages in this file</span>
+            </div>
             <div className="print-counter">
-              <button onClick={() => setConfig({ ...config, copies: Math.max(1, config.copies - 1) })}>-</button>
-              <span>{config.copies}</span>
-              <button onClick={() => setConfig({ ...config, copies: Math.min(50, config.copies + 1) })}>+</button>
+              <button onClick={() => updateFile(selectedIdx, 'pages', Math.max(1, selected.pages - 1))}><Minus size={16} /></button>
+              <input
+                type="number"
+                value={selected.pages}
+                onChange={(e) => updateFile(selectedIdx, 'pages', Math.max(1, parseInt(e.target.value) || 1))}
+                min="1"
+              />
+              <button onClick={() => updateFile(selectedIdx, 'pages', selected.pages + 1)}><Plus size={16} /></button>
             </div>
+          </div>
 
-            <label className="input-label">Print Mode</label>
-            <div className="print-options">
+          <div className="ps-config-divider" />
+
+          {/* Copies */}
+          <div className="ps-config-row">
+            <div>
+              <strong>Number of copies</strong>
+              <span className="text-muted ps-config-sub">File {selectedIdx + 1} ({selected.pages} page{selected.pages !== 1 ? 's' : ''})</span>
+            </div>
+            <div className="print-counter">
+              <button onClick={() => updateFile(selectedIdx, 'copies', Math.max(1, selected.copies - 1))}><Minus size={16} /></button>
+              <span>{selected.copies}</span>
+              <button onClick={() => updateFile(selectedIdx, 'copies', Math.min(50, selected.copies + 1))}><Plus size={16} /></button>
+            </div>
+          </div>
+
+          <div className="ps-config-divider" />
+
+          {/* Color mode */}
+          <div className="ps-config-block">
+            <strong>Choose print color</strong>
+            <div className="ps-chip-row">
               <button
-                className={`print-option ${config.colorMode === 'bw' ? 'active' : ''}`}
-                onClick={() => setConfig({ ...config, colorMode: 'bw' })}
+                className={`ps-chip ${selected.colorMode === 'color' ? 'active' : ''}`}
+                onClick={() => updateFile(selectedIdx, 'colorMode', 'color')}
               >
-                <File size={18} />
-                <span>Black & White</span>
-                <span className="print-option-price">₹2/page</span>
+                <Palette size={14} />
+                <span>Coloured</span>
+                <span className="ps-chip-price">₹5/page</span>
               </button>
               <button
-                className={`print-option ${config.colorMode === 'color' ? 'active' : ''}`}
-                onClick={() => setConfig({ ...config, colorMode: 'color' })}
+                className={`ps-chip ${selected.colorMode === 'bw' ? 'active' : ''}`}
+                onClick={() => updateFile(selectedIdx, 'colorMode', 'bw')}
               >
-                <Palette size={18} />
-                <span>Color</span>
-                <span className="print-option-price">₹5/page</span>
+                <File size={14} />
+                <span>B & W</span>
+                <span className="ps-chip-price">₹2/page</span>
               </button>
             </div>
+          </div>
 
-            <label className="input-label">Sides</label>
-            <div className="print-options">
+          <div className="ps-config-divider" />
+
+          {/* Sides */}
+          <div className="ps-config-block">
+            <strong>Choose print sides</strong>
+            <div className="ps-chip-row">
               <button
-                className={`print-option ${config.sides === 'single' ? 'active' : ''}`}
-                onClick={() => setConfig({ ...config, sides: 'single' })}
+                className={`ps-chip ${selected.sides === 'single' ? 'active' : ''}`}
+                onClick={() => updateFile(selectedIdx, 'sides', 'single')}
               >
                 <span>Single Side</span>
               </button>
               <button
-                className={`print-option ${config.sides === 'double' ? 'active' : ''}`}
-                onClick={() => setConfig({ ...config, sides: 'double' })}
+                className={`ps-chip ${selected.sides === 'double' ? 'active' : ''}`}
+                onClick={() => updateFile(selectedIdx, 'sides', 'double')}
               >
                 <span>Double Side</span>
-                <span className="print-option-price">25% off</span>
-              </button>
-            </div>
-
-            <label className="input-label">Paper Size</label>
-            <div className="print-options three">
-              {['A4', 'A3', 'Letter'].map((size) => (
-                <button
-                  key={size}
-                  className={`print-option ${config.paperSize === size ? 'active' : ''}`}
-                  onClick={() => setConfig({ ...config, paperSize: size })}
-                >
-                  <span>{size}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="print-nav-btns">
-              <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
-              <button
-                className="btn-primary"
-                disabled={!config.totalPages || config.totalPages < 1}
-                onClick={() => setStep(3)}
-              >
-                Review Order
+                <span className="ps-chip-price">25% off</span>
               </button>
             </div>
           </div>
 
-          <PricePreview />
+          <div className="ps-config-divider" />
+
+          {/* Orientation */}
+          <div className="ps-config-block">
+            <strong>Choose print orientation</strong>
+            <div className="ps-chip-row">
+              <button
+                className={`ps-chip ${selected.orientation === 'portrait' ? 'active' : ''}`}
+                onClick={() => updateFile(selectedIdx, 'orientation', 'portrait')}
+              >
+                <Smartphone size={14} />
+                <span>Portrait</span>
+                <span className="ps-chip-price">8.3 x 11.7 in</span>
+              </button>
+              <button
+                className={`ps-chip ${selected.orientation === 'landscape' ? 'active' : ''}`}
+                onClick={() => updateFile(selectedIdx, 'orientation', 'landscape')}
+              >
+                <Monitor size={14} />
+                <span>Landscape</span>
+                <span className="ps-chip-price">11.7 x 8.3 in</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Step 3: Review & Delivery */}
-      {step === 3 && (
-        <div className="print-section-layout">
-          <div className="print-section print-section-main">
-            <h3><Printer size={18} /> Review & Place Order</h3>
+      {/* Checkout / delivery section */}
+      {showCheckout && (
+        <div className="ps-config-section">
+          <h3><Printer size={18} /> Delivery Details</h3>
 
-            <div className="print-review-card">
-              <div className="print-review-row">
-                <span>Files</span>
-                <span>{files.length} file{files.length > 1 ? 's' : ''}</span>
-              </div>
-              <div className="print-review-row">
-                <span>Pages</span>
-                <span>{config.totalPages} x {config.copies} copies</span>
-              </div>
-              <div className="print-review-row">
-                <span>Mode</span>
-                <span>{config.colorMode === 'bw' ? 'Black & White' : 'Color'}, {config.sides === 'single' ? 'Single-sided' : 'Double-sided'}</span>
-              </div>
-              <div className="print-review-row">
-                <span>Paper</span>
-                <span>{config.paperSize}</span>
-              </div>
-              {priceCalc && (
-                <div className="print-review-row total">
-                  <span>Total</span>
-                  <span>{formatPrice(priceCalc.total)}</span>
-                </div>
-              )}
-            </div>
+          <label className="input-label">Hostel *</label>
+          <select className="input" value={delivery.hostel} onChange={(e) => setDelivery({ ...delivery, hostel: e.target.value })}>
+            <option value="">Select hostel</option>
+            {HOSTEL_OPTIONS.map((h) => <option key={h} value={h}>{h}</option>)}
+          </select>
 
-            <h3 style={{ marginTop: 20 }}>Delivery Details</h3>
+          <label className="input-label">Pickup Gate *</label>
+          <select className="input" value={delivery.gate} onChange={(e) => setDelivery({ ...delivery, gate: e.target.value })}>
+            <option value="">Select gate</option>
+            {GATE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
 
-            <label className="input-label">Hostel *</label>
-            <select className="input" value={delivery.hostel} onChange={(e) => setDelivery({ ...delivery, hostel: e.target.value })}>
-              <option value="">Select hostel</option>
-              {HOSTEL_OPTIONS.map((h) => <option key={h} value={h}>{h}</option>)}
-            </select>
+          <label className="input-label">Special Instructions</label>
+          <textarea
+            className="input"
+            value={delivery.note}
+            onChange={(e) => setDelivery({ ...delivery, note: e.target.value })}
+            placeholder="e.g. Print pages 1-10 only, or staple together..."
+            rows={2}
+          />
 
-            <label className="input-label">Pickup Gate *</label>
-            <select className="input" value={delivery.gate} onChange={(e) => setDelivery({ ...delivery, gate: e.target.value })}>
-              <option value="">Select gate</option>
-              {GATE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
-            </select>
+          <div className="print-nav-btns">
+            <button className="btn-secondary" onClick={() => setShowCheckout(false)}>Back</button>
+            <button className="btn-primary" disabled={loading} onClick={handleSubmit}>
+              {loading ? 'Placing Order...' : `Place Order (COD) ${formatPrice(grandTotal)}`}
+            </button>
+          </div>
+        </div>
+      )}
 
-            <label className="input-label">Special Instructions</label>
-            <textarea
-              className="input"
-              value={delivery.note}
-              onChange={(e) => setDelivery({ ...delivery, note: e.target.value })}
-              placeholder="e.g. Print pages 1-10 only, or staple together..."
-              rows={3}
-            />
-
-            <div className="print-nav-btns">
-              <button className="btn-secondary" onClick={() => setStep(2)}>Back</button>
-              <button className="btn-primary" disabled={loading} onClick={handleSubmit}>
-                {loading ? 'Placing Order...' : `Place Order (COD) ${priceCalc ? formatPrice(priceCalc.total) : ''}`}
-              </button>
+      {/* Sticky bottom price bar */}
+      {fileItems.length > 0 && !showCheckout && (
+        <div className="ps-bottom-bar">
+          <div className="ps-bottom-info">
+            <Printer size={20} />
+            <div>
+              <strong>Total {totalPages} pages</strong>
+              <span>{formatPrice(grandTotal)}</span>
             </div>
           </div>
+          <button className="ps-bottom-btn" onClick={() => setShowCheckout(true)}>
+            Proceed
+          </button>
+        </div>
+      )}
 
-          <PricePreview />
+      {/* Upload modal */}
+      {uploading && (
+        <div className="ps-upload-modal">
+          <div className="ps-upload-content">
+            <div className="ps-upload-icon">📄</div>
+            <div className="ps-upload-progress"><div className="ps-upload-bar" /></div>
+            <strong>Uploading your files</strong>
+            <p className="text-muted">We delete your uploaded files once order is delivered</p>
+          </div>
         </div>
       )}
     </div>

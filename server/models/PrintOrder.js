@@ -1,5 +1,5 @@
 // PrintOrder model — stores print/photocopy requests from students
-// Tracks uploaded files, print config (copies, color, sides), and delivery details
+// Tracks uploaded files with per-file config, and delivery details
 
 const mongoose = require('mongoose');
 
@@ -17,11 +17,16 @@ const printOrderSchema = new mongoose.Schema(
     files: [
       {
         originalName: { type: String, required: true },
-        url: { type: String, required: true }, // Cloudinary URL
+        url: { type: String, required: true },
+        size: { type: Number },
         pages: { type: Number, default: 1 },
-        size: { type: Number }, // bytes
+        copies: { type: Number, default: 1 },
+        colorMode: { type: String, enum: ['bw', 'color'], default: 'bw' },
+        sides: { type: String, enum: ['single', 'double'], default: 'single' },
+        orientation: { type: String, enum: ['portrait', 'landscape'], default: 'portrait' },
       },
     ],
+    // Legacy global config (kept for backward compat with old orders)
     config: {
       copies: { type: Number, default: 1, min: 1, max: 50 },
       colorMode: { type: String, enum: ['bw', 'color'], default: 'bw' },
@@ -59,13 +64,34 @@ printOrderSchema.pre('save', async function (next) {
   next();
 });
 
-// Calculate pricing before save
+// Calculate pricing before save — uses per-file config if available
 printOrderSchema.pre('save', function (next) {
-  if (this.isModified('config') || this.isModified('files') || this.isModified('totalPages')) {
-    const basePrice = this.config.colorMode === 'color' ? 5 : 2;
-    const sideMultiplier = this.config.sides === 'double' ? 0.75 : 1;
-    this.pricePerPage = Math.round(basePrice * sideMultiplier);
-    this.subtotal = this.totalPages * this.config.copies * this.pricePerPage;
+  if (this.isModified('files') || this.isModified('totalPages') || this.isModified('config')) {
+    let subtotal = 0;
+    let totalPg = 0;
+
+    // Per-file pricing
+    if (this.files && this.files.length > 0 && this.files[0].pages) {
+      this.files.forEach((f) => {
+        const basePrice = f.colorMode === 'color' ? 5 : 2;
+        const sideMultiplier = f.sides === 'double' ? 0.75 : 1;
+        const ppp = basePrice * sideMultiplier;
+        const pages = f.pages || 1;
+        const copies = f.copies || 1;
+        subtotal += Math.round(pages * copies * ppp);
+        totalPg += pages * copies;
+      });
+      this.totalPages = totalPg;
+      this.pricePerPage = this.files.length > 0 ? Math.round(subtotal / totalPg) : 0;
+    } else {
+      // Legacy: global config pricing
+      const basePrice = this.config.colorMode === 'color' ? 5 : 2;
+      const sideMultiplier = this.config.sides === 'double' ? 0.75 : 1;
+      this.pricePerPage = Math.round(basePrice * sideMultiplier);
+      subtotal = this.totalPages * this.config.copies * this.pricePerPage;
+    }
+
+    this.subtotal = subtotal;
     this.total = this.subtotal + this.deliveryFee;
   }
   next();
