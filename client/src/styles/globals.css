@@ -862,20 +862,51 @@ img { max-width: 100%; display: block; }
 .checkout-items-review h3 { font-size: 1rem; margin-bottom: 12px; }
 
 /* ===== ORDER CARD ===== */
-.orders-list { display: grid; grid-template-columns: 1fr; gap: 12px; max-width: 900px; margin: 0 auto; }
+.orders-list { display: grid; grid-template-columns: 1fr; gap: 14px; max-width: 960px; margin: 0 auto; }
 .order-card {
-  background: var(--bg-white); padding: 14px; border-radius: var(--radius);
+  background: var(--bg-white); padding: 16px; border-radius: var(--radius);
   box-shadow: var(--shadow); cursor: pointer; border: 1px solid var(--border);
-  transition: all var(--transition);
+  transition: all var(--transition); display: flex; flex-direction: column; gap: 12px;
 }
-.order-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-.order-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.order-id { font-weight: 700; }
-.order-status { font-weight: 600; font-size: 0.85rem; }
-.order-card-items { font-size: 0.85rem; color: var(--text-secondary); display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
-.order-card-footer { display: flex; justify-content: space-between; }
-.order-total { font-weight: 700; }
-.order-date { font-size: 0.8rem; color: var(--text-muted); }
+.order-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.order-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.order-card-id-row { display: flex; flex-direction: column; gap: 2px; }
+.order-id { font-weight: 700; font-size: 0.95rem; }
+.order-status-badge {
+  font-size: 0.72rem; font-weight: 700; color: white; padding: 3px 10px;
+  border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+}
+.order-card-body { display: flex; gap: 14px; align-items: flex-start; }
+.order-card-thumbs {
+  display: flex; gap: 6px; flex-shrink: 0;
+}
+.order-thumb {
+  width: 48px; height: 48px; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--border); position: relative; background: var(--bg);
+  flex-shrink: 0;
+}
+.order-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.order-thumb-qty {
+  position: absolute; bottom: 0; right: 0; background: var(--primary); color: white;
+  font-size: 0.6rem; font-weight: 700; padding: 1px 4px; border-radius: 6px 0 6px 0;
+}
+.order-thumb-more {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); background: var(--bg);
+}
+.order-card-items {
+  font-size: 0.82rem; color: var(--text-secondary); display: flex;
+  flex-direction: column; gap: 2px; min-width: 0;
+}
+.order-card-items span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.order-card-more { color: var(--primary); font-weight: 600; }
+.order-card-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  border-top: 1px solid var(--border); padding-top: 10px;
+}
+.order-total { font-weight: 700; font-size: 1.05rem; }
+.order-date { font-size: 0.78rem; color: var(--text-muted); }
+.order-card-arrow { color: var(--text-muted); display: flex; align-items: center; }
 
 /* ===== ORDER TRACKER V2 (Animated) ===== */
 .tracker-container {
@@ -1012,15 +1043,37 @@ img { max-width: 100%; display: block; }
 }
 
 /* ===== ORDER DETAIL ===== */
+.order-detail { max-width: 720px; margin: 0 auto; }
 .order-detail-header { margin-bottom: 8px; }
 .order-detail-header h2 { font-size: 1.2rem; }
-.order-detail-section { background: var(--bg-white); padding: 14px; border-radius: var(--radius); box-shadow: var(--shadow); margin-top: 12px; border: 1px solid var(--border); }
-.order-detail-section h3 { font-size: 0.95rem; margin-bottom: 10px; color: var(--text-secondary); }
-.order-item-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.9rem; }
-.order-item-left { display: flex; gap: 8px; }
-.order-item-qty { font-weight: 700; color: var(--primary); }
-.detail-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9rem; }
-.detail-row.total { font-weight: 700; border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px; }
+.order-detail-section { background: var(--bg-white); padding: 16px; border-radius: var(--radius); box-shadow: var(--shadow); margin-top: 12px; border: 1px solid var(--border); }
+.order-detail-section h3 { font-size: 0.95rem; margin-bottom: 12px; color: var(--text-secondary); }
+.order-detail-grid { display: grid; grid-template-columns: 1fr; gap: 0; }
+
+/* Item cards with images */
+.order-items-list { display: flex; flex-direction: column; gap: 10px; }
+.order-item-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px; border-radius: 10px; background: var(--bg);
+  transition: background 0.2s ease;
+}
+.order-item-img {
+  width: 52px; height: 52px; border-radius: 8px; overflow: hidden;
+  flex-shrink: 0; border: 1px solid var(--border); background: white;
+}
+.order-item-img img { width: 100%; height: 100%; object-fit: cover; }
+.order-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.order-item-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.order-item-meta { font-size: 0.78rem; color: var(--text-muted); }
+.order-item-total { font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+
+/* Detail rows */
+.detail-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.9rem; }
+.detail-row.total { font-weight: 700; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 6px; font-size: 1rem; }
+.detail-badge {
+  background: var(--bg); padding: 2px 10px; border-radius: 12px;
+  font-size: 0.8rem; font-weight: 600;
+}
 
 /* ===== PROFILE ===== */
 .profile-card { background: var(--bg-white); padding: 20px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 16px; border: 1px solid var(--border); }
@@ -2289,7 +2342,12 @@ img { max-width: 100%; display: block; }
   .pdp { max-width: 960px; margin: 0 auto; }
 
   /* Orders page — two column on desktop */
-  .orders-list { grid-template-columns: 1fr 1fr; max-width: 900px; }
+  .orders-list { grid-template-columns: 1fr 1fr; max-width: 960px; }
+  .order-detail { max-width: 800px; }
+  .order-detail-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .order-detail-grid .order-detail-section { margin-top: 12px; }
+  .order-item-img { width: 60px; height: 60px; }
+  .order-thumb { width: 52px; height: 52px; }
 
   /* Modal */
   .modal { max-width: 600px; }
