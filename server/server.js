@@ -49,7 +49,8 @@ app.use(cors({
   credentials: true,
 }));
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow images from Cloudinary
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false, // Allow loading images/fonts from Cloudinary and other CDNs
 }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
