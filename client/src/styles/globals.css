@@ -2341,13 +2341,24 @@ img { max-width: 100%; display: block; }
   /* PDP — side by side image + info */
   .pdp { max-width: 960px; margin: 0 auto; }
 
-  /* Orders page — two column on desktop */
-  .orders-list { grid-template-columns: 1fr 1fr; max-width: 960px; }
+  /* Orders page — single column, wider horizontal cards on desktop */
+  .orders-list { grid-template-columns: 1fr; max-width: 680px; gap: 16px; }
+  .order-card { flex-direction: row; align-items: center; padding: 18px 22px; gap: 20px; }
+  .order-card-header { flex-direction: column; align-items: flex-start; gap: 6px; min-width: 120px; }
+  .order-card-body { flex: 1; min-width: 0; }
+  .order-card-thumbs { gap: 8px; }
+  .order-thumb { width: 56px; height: 56px; border-radius: 10px; }
+  .order-card-items { flex-direction: row; flex-wrap: wrap; gap: 4px 12px; }
+  .order-card-footer { flex-direction: column; align-items: flex-end; gap: 4px; border-top: none; padding-top: 0; min-width: 80px; }
+  .order-total { font-size: 1.1rem; }
+
+  /* Order detail — wider with side-by-side sections */
   .order-detail { max-width: 800px; }
   .order-detail-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
   .order-detail-grid .order-detail-section { margin-top: 12px; }
-  .order-item-img { width: 60px; height: 60px; }
-  .order-thumb { width: 52px; height: 52px; }
+  .order-item-card { padding: 12px 14px; }
+  .order-item-img { width: 64px; height: 64px; }
+  .order-item-name { font-size: 0.95rem; }
 
   /* Modal */
   .modal { max-width: 600px; }
@@ -2383,6 +2394,12 @@ img { max-width: 100%; display: block; }
   .gs-results-grid { grid-template-columns: repeat(4, 1fr); }
 
   .cart-bar { max-width: 500px; bottom: 16px; }
+
+  /* Orders — even wider on XL */
+  .orders-list { max-width: 760px; }
+  .order-thumb { width: 60px; height: 60px; }
+  .order-detail { max-width: 900px; }
+  .order-item-img { width: 72px; height: 72px; }
 }
 
 /* --- Admin responsive (already has 768px breakpoint above) --- */
