@@ -4,8 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, ShoppingBag, Package, Upload, FolderTree, Image, LogOut } from 'lucide-react';
 import io from 'socket.io-client';
-
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5002';
+import { SOCKET_URL } from '../../utils/constants';
 
 const AdminSidebar = ({ onLogout }) => {
   const [shopCount, setShopCount] = useState(0);

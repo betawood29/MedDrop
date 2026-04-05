@@ -1,4 +1,8 @@
-// App-wide constants — delivery fees, gate options, order statuses
+// App-wide constants — URLs, delivery fees, gate options, order statuses
+
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002/api';
+export const API_BASE_URL = API_URL.replace('/api', '');
+export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE_URL;
 
 export const DELIVERY_FEE = 25;
 export const FREE_DELIVERY_MIN = 299;

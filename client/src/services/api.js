@@ -1,9 +1,10 @@
 // Axios instance with base URL, auth interceptor, and error handling
 
 import axios from 'axios';
+import { API_URL } from '../utils/constants';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5002/api',
+  baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 

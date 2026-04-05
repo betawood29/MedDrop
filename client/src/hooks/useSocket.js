@@ -2,8 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5002';
+import { SOCKET_URL } from '../utils/constants';
 
 export const useSocket = (orderId, onUpdate) => {
   const socketRef = useRef(null);

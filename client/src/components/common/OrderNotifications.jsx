@@ -6,9 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import { useAuth } from '../../hooks/useAuth';
-import { ORDER_STATUSES } from '../../utils/constants';
-
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5002';
+import { ORDER_STATUSES, SOCKET_URL } from '../../utils/constants';
 
 const STATUS_ICONS = {
   confirmed: '✅',
