@@ -862,50 +862,51 @@ img { max-width: 100%; display: block; }
 .checkout-items-review h3 { font-size: 1rem; margin-bottom: 12px; }
 
 /* ===== ORDER CARD ===== */
-.orders-list { display: grid; grid-template-columns: 1fr; gap: 14px; max-width: 960px; margin: 0 auto; }
+.orders-list { display: grid; grid-template-columns: 1fr; gap: 12px; max-width: 960px; margin: 0 auto; }
 .order-card {
-  background: var(--bg-white); padding: 16px; border-radius: var(--radius);
+  background: var(--bg-white); padding: 14px; border-radius: var(--radius);
   box-shadow: var(--shadow); cursor: pointer; border: 1px solid var(--border);
-  transition: all var(--transition); display: flex; flex-direction: column; gap: 12px;
+  transition: all var(--transition); display: flex; flex-direction: column; gap: 10px;
+  overflow: hidden;
 }
 .order-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-.order-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-.order-card-id-row { display: flex; flex-direction: column; gap: 2px; }
-.order-id { font-weight: 700; font-size: 0.95rem; }
+.order-card-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.order-card-id-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.order-id { font-weight: 700; font-size: 0.9rem; }
 .order-status-badge {
-  font-size: 0.72rem; font-weight: 700; color: white; padding: 3px 10px;
+  font-size: 0.7rem; font-weight: 700; color: white; padding: 3px 10px;
   border-radius: 20px; white-space: nowrap; flex-shrink: 0;
 }
-.order-card-body { display: flex; gap: 14px; align-items: flex-start; }
+.order-card-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .order-card-thumbs {
-  display: flex; gap: 6px; flex-shrink: 0;
+  display: flex; gap: 6px; flex-wrap: wrap;
 }
 .order-thumb {
-  width: 48px; height: 48px; border-radius: 8px; overflow: hidden;
+  width: 42px; height: 42px; border-radius: 8px; overflow: hidden;
   border: 1px solid var(--border); position: relative; background: var(--bg);
   flex-shrink: 0;
 }
 .order-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .order-thumb-qty {
   position: absolute; bottom: 0; right: 0; background: var(--primary); color: white;
-  font-size: 0.6rem; font-weight: 700; padding: 1px 4px; border-radius: 6px 0 6px 0;
+  font-size: 0.55rem; font-weight: 700; padding: 1px 3px; border-radius: 6px 0 6px 0;
 }
 .order-thumb-more {
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); background: var(--bg);
+  font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); background: var(--bg);
 }
 .order-card-items {
-  font-size: 0.82rem; color: var(--text-secondary); display: flex;
-  flex-direction: column; gap: 2px; min-width: 0;
+  font-size: 0.8rem; color: var(--text-secondary); display: flex;
+  flex-wrap: wrap; gap: 2px 10px; min-width: 0;
 }
-.order-card-items span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.order-card-items span { overflow: hidden; text-overflow: ellipsis; }
 .order-card-more { color: var(--primary); font-weight: 600; }
 .order-card-footer {
   display: flex; justify-content: space-between; align-items: center;
-  border-top: 1px solid var(--border); padding-top: 10px;
+  border-top: 1px solid var(--border); padding-top: 8px;
 }
-.order-total { font-weight: 700; font-size: 1.05rem; }
-.order-date { font-size: 0.78rem; color: var(--text-muted); }
+.order-total { font-weight: 700; font-size: 1rem; }
+.order-date { font-size: 0.75rem; color: var(--text-muted); }
 .order-card-arrow { color: var(--text-muted); display: flex; align-items: center; }
 
 /* ===== ORDER TRACKER V2 (Animated) ===== */
