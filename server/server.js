@@ -96,8 +96,8 @@ app.use('/api/banner', bannerRoutes);
 // Serve uploaded files (print store files)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Health check
-app.get('/api/health', (req, res) => {
+// Health check (allows any origin so monitoring tools and browsers can reach it)
+app.get('/api/health', cors(), (req, res) => {
   res.json({ success: true, message: 'MedDrop API is running', timestamp: new Date().toISOString() });
 });
 
