@@ -5,7 +5,7 @@ import { Download, Eye } from 'lucide-react';
 import { formatPrice, formatDateTime } from '../../utils/formatters';
 import { PRINT_ORDER_STATUSES } from '../../utils/constants';
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5001';
+const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5002';
 const statusOptions = ['placed', 'printing', 'ready', 'out', 'delivered', 'cancelled'];
 
 const getFileIcon = (name) => {

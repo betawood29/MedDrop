@@ -12,16 +12,24 @@ const seedData = async () => {
     console.log('Connected to MongoDB');
 
     // Create admin account (phone from .env ADMIN_PHONE)
+    const newPassword = process.env.ADMIN_PASSWORD || 'admin123';
     const existingAdmin = await Admin.findOne({ phone: process.env.ADMIN_PHONE });
     if (!existingAdmin) {
       await Admin.create({
         name: 'MedDrop Admin',
         phone: process.env.ADMIN_PHONE,
-        password: 'admin123', // Change this in production!
+        password: newPassword,
       });
-      console.log(`Admin created — Phone: ${process.env.ADMIN_PHONE}, Password: admin123`);
+      console.log(`Admin created — Phone: ${process.env.ADMIN_PHONE}`);
     } else {
-      console.log('Admin already exists');
+      // Update password if ADMIN_PASSWORD env var is set
+      if (process.env.ADMIN_PASSWORD) {
+        existingAdmin.password = newPassword;
+        await existingAdmin.save();
+        console.log('Admin password updated');
+      } else {
+        console.log('Admin already exists (set ADMIN_PASSWORD in .env to update password)');
+      }
     }
 
     // Seed default categories

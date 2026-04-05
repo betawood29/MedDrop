@@ -9,12 +9,16 @@ const ApiError = require('../utils/apiError');
 const devOtpStore = new Map();
 
 const sendOTP = async (phone) => {
-  // Dev mode — store a static OTP
-  if (!process.env.FIREBASE_PROJECT_ID) {
+  // Dev mode — store a static OTP (only when NODE_ENV is not production)
+  if (!process.env.FIREBASE_PROJECT_ID && process.env.NODE_ENV !== 'production') {
     const otp = '123456';
     devOtpStore.set(phone, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
-    console.log(`[DEV] OTP for ${phone}: ${otp}`);
     return { success: true, message: 'OTP sent (dev mode)' };
+  }
+
+  // In production, Firebase must be configured
+  if (!process.env.FIREBASE_PROJECT_ID) {
+    throw new ApiError('Firebase is not configured. Cannot send OTP.', 500);
   }
 
   // Production — Firebase handles OTP sending on the client side
@@ -24,7 +28,7 @@ const sendOTP = async (phone) => {
 
 const verifyOTP = async (phone, otp, firebaseToken) => {
   // Dev mode — check against in-memory store
-  if (!process.env.FIREBASE_PROJECT_ID) {
+  if (!process.env.FIREBASE_PROJECT_ID && process.env.NODE_ENV !== 'production') {
     const stored = devOtpStore.get(phone);
     if (!stored) throw ApiError.badRequest('OTP not found. Please request a new one.');
     if (Date.now() > stored.expiresAt) {

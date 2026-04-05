@@ -41,8 +41,9 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow requests with no origin (mobile apps, curl, server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // In production, require an origin header; in dev, allow no-origin requests (curl, Postman)
+    if (process.env.NODE_ENV !== 'production' && !origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -50,7 +51,7 @@ app.use(cors({
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow images from Cloudinary
 }));
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -115,10 +116,7 @@ const startServer = async () => {
   await connectDB();
 
   server.listen(PORT, () => {
-    console.log(`\n🏪 MedDrop Server running on port ${PORT}`);
-    console.log(`📡 API: http://localhost:${PORT}/api`);
-    console.log(`🔌 Socket.io ready`);
-    console.log(`🌱 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+    console.log(`MedDrop Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
   });
 };
 

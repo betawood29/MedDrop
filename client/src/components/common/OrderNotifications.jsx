@@ -8,7 +8,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from '../../hooks/useAuth';
 import { ORDER_STATUSES } from '../../utils/constants';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5002';
 
 const STATUS_ICONS = {
   confirmed: '✅',
