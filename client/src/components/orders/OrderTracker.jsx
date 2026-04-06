@@ -103,7 +103,7 @@ const OrderTracker = ({ status }) => {
         <div className="tracker-eta">
           {status === 'gate' ? 'Waiting at gate for pickup' :
            status === 'out' ? 'On the way to your gate' :
-           'Estimated delivery: 15-30 mins'}
+           'Scheduled delivery: 6 – 7 PM'}
         </div>
       )}
     </div>

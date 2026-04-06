@@ -28,6 +28,19 @@ export const PRINT_ORDER_STATUSES = {
   cancelled: { label: 'Cancelled', color: '#ef4444', step: -1 },
 };
 
+// Scheduled delivery — orders before 4 PM delivered same day 6-7 PM, else next day
+export const DELIVERY_CUTOFF_HOUR = 16; // 4 PM
+export const DELIVERY_WINDOW = '6 – 7 PM';
+
+export const getDeliveryInfo = () => {
+  const now = new Date();
+  const hour = now.getHours();
+  if (hour < DELIVERY_CUTOFF_HOUR) {
+    return { label: `Today, ${DELIVERY_WINDOW}`, isToday: true };
+  }
+  return { label: `Tomorrow, ${DELIVERY_WINDOW}`, isToday: false };
+};
+
 export const HOSTEL_OPTIONS = [
   'Hostel 1', 'Hostel 2', 'Hostel 3', 'Hostel 4', 'Hostel 5',
   'Hostel 6', 'Hostel 7', 'Hostel 8', 'Hostel 9', 'Hostel 10',

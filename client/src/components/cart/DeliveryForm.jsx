@@ -1,7 +1,8 @@
 // Delivery form — hostel, gate selection, and optional note for the order
 
 import { useState } from 'react';
-import { GATE_OPTIONS, HOSTEL_OPTIONS } from '../../utils/constants';
+import { CalendarClock } from 'lucide-react';
+import { GATE_OPTIONS, HOSTEL_OPTIONS, getDeliveryInfo } from '../../utils/constants';
 import { useAuth } from '../../hooks/useAuth';
 
 const DeliveryForm = ({ onSubmit, loading }) => {
@@ -46,8 +47,13 @@ const DeliveryForm = ({ onSubmit, loading }) => {
 
       {error && <p className="error-text">{error}</p>}
 
+      <div className="delivery-schedule-hint">
+        <CalendarClock size={14} />
+        <span>Same-day delivery — Order before 4 PM, get it by 6–7 PM</span>
+      </div>
+
       <button type="submit" className="btn-primary" disabled={loading}>
-        {loading ? 'Processing...' : 'Place Order & Pay'}
+        {loading ? 'Processing...' : `Place Order & Pay — Delivery ${getDeliveryInfo().label}`}
       </button>
     </form>
   );

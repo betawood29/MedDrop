@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Minus } from 'lucide-react';
 import { useCart } from '../../hooks/useCart';
 import { formatPrice } from '../../utils/formatters';
+import { getDeliveryInfo } from '../../utils/constants';
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ const ProductCard = ({ product }) => {
       </div>
 
       <div className="product-info">
-        <div className="product-delivery-time">15-30 MINS</div>
+        <div className="product-delivery-time">{getDeliveryInfo().label}</div>
         <h3 className="product-name" onClick={goToProduct} style={{ cursor: 'pointer' }}>{product.name}</h3>
         {product.description && <p className="product-desc">{product.description}</p>}
 

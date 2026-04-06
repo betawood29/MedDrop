@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Minus, Clock, ShieldCheck, Tag, Package, ChevronRight 
 import { useCart } from '../hooks/useCart';
 import { getProduct, getProducts } from '../services/productService';
 import { formatPrice } from '../utils/formatters';
+import { getDeliveryInfo } from '../utils/constants';
 import ProductGrid from '../components/shop/ProductGrid';
 import CartBar from '../components/shop/CartBar';
 import Loader from '../components/common/Loader';
@@ -105,7 +106,7 @@ const ProductPage = () => {
       <div className="pdp-info">
         <div className="pdp-delivery-tag">
           <Clock size={12} />
-          <span>15-30 MINS</span>
+          <span>{getDeliveryInfo().label}</span>
         </div>
 
         <h1 className="pdp-name">{product.name}</h1>

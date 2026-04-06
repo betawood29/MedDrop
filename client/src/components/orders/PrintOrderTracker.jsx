@@ -93,7 +93,7 @@ const PrintOrderTracker = ({ status }) => {
           {status === 'ready' ? 'Ready for pickup / delivery' :
            status === 'out' ? 'On the way to your gate' :
            status === 'printing' ? 'Your documents are being printed' :
-           'Estimated: 30-60 mins'}
+           'Scheduled delivery: 6 – 7 PM'}
         </div>
       )}
     </div>

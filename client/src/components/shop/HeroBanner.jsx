@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Truck, ShieldCheck, Clock, ArrowRight } from 'lucide-react';
+import { Truck, ShieldCheck, ArrowRight, CalendarClock } from 'lucide-react';
 import { getActiveBanner } from '../../services/bannerService';
+import { getDeliveryInfo } from '../../utils/constants';
 
 const fallback = {
   title: 'Medicines & Essentials',
@@ -11,10 +12,10 @@ const fallback = {
   subtitle: 'Chitkara University Campus Delivery',
   image: '/bnr.jpeg',
   link: '/category/all',
-  features: ['Free above ₹299', '100% Genuine', '24/7 Available'],
+  features: ['Free delivery above ₹199', '100% Genuine', 'Scheduled Delivery'],
 };
 
-const featureIcons = [Truck, ShieldCheck, Clock];
+const featureIcons = [Truck, ShieldCheck, CalendarClock];
 
 const HeroBanner = () => {
   const navigate = useNavigate();
@@ -33,8 +34,8 @@ const HeroBanner = () => {
       <img src={banner.image || '/bnr.jpeg'} alt="MedDrop Banner" loading="eager" />
       <div className="hero-content">
         <div className="hero-delivery-tag">
-          <Zap size={10} />
-          <span>Delivery in 15–30 mins</span>
+          <CalendarClock size={10} />
+          <span>Delivery {getDeliveryInfo().label}</span>
         </div>
         <h1 className="hero-title">
           {banner.title}<br />

@@ -2,12 +2,13 @@
 // Desktop: side-by-side layout (items left, summary right)
 
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, ArrowLeft, Clock, Printer, X } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, CalendarClock, Printer, X } from 'lucide-react';
 import CartItem from '../components/cart/CartItem';
 import CartSummary from '../components/cart/CartSummary';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
 import { formatPrice } from '../utils/formatters';
+import { getDeliveryInfo, DELIVERY_CUTOFF_HOUR } from '../utils/constants';
 
 const CartPage = () => {
   const { items, clearCart, itemCount, printOrder, clearPrintOrder, hasAnything } = useCart();
@@ -46,10 +47,10 @@ const CartPage = () => {
 
       {/* Delivery info strip */}
       <div className="cart-delivery-strip">
-        <Clock size={16} />
+        <CalendarClock size={16} />
         <div>
-          <strong>Delivery in 15–30 mins</strong>
-          <span>{totalCount} item{totalCount > 1 ? 's' : ''} in cart</span>
+          <strong>Delivery {getDeliveryInfo().label}</strong>
+          <span>{totalCount} item{totalCount > 1 ? 's' : ''} · Order before {DELIVERY_CUTOFF_HOUR > 12 ? DELIVERY_CUTOFF_HOUR - 12 : DELIVERY_CUTOFF_HOUR} PM for same-day delivery</span>
         </div>
       </div>
 

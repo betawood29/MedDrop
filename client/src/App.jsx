@@ -9,6 +9,7 @@ import BottomNav from './components/common/BottomNav';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import OrderNotifications from './components/common/OrderNotifications';
+import AnnouncementBar from './components/common/AnnouncementBar';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -69,6 +70,7 @@ const CustomerLayout = () => {
   return (
     <>
       <Navbar />
+      <AnnouncementBar />
       <main className="main-content">
         <Routes>
           <Route path="/" element={<ShopPage />} />

@@ -199,7 +199,7 @@ const PrintStorePage = () => {
             <div className="ps-why-grid">
               <div className="ps-why-item">
                 <span>🚀</span>
-                <div><strong>Fast Delivery</strong><p>Delivered to your gate in 30–60 mins</p></div>
+                <div><strong>Same-Day Delivery</strong><p>Order before 4 PM, get it by 6–7 PM</p></div>
               </div>
               <div className="ps-why-item">
                 <span>🔒</span>
