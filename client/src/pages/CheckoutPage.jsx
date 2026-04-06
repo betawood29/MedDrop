@@ -1,4 +1,5 @@
-// Checkout page — delivery form + order summary + COD or Razorpay payment
+// Checkout page — handles both shop orders and print orders
+// Delivery form + order summary + COD or Razorpay payment
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,9 +10,10 @@ import DeliveryForm from '../components/cart/DeliveryForm';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
 import { createOrder, createPaymentOrder, verifyPayment } from '../services/orderService';
+import { createPrintOrder } from '../services/printService';
 
 const CheckoutPage = () => {
-  const { items, total, clearCart } = useCart();
+  const { items, printOrder, clearAll, hasAnything } = useCart();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -46,52 +48,75 @@ const CheckoutPage = () => {
   const handlePlaceOrder = async ({ hostel, gate, note, paymentMethod }) => {
     setLoading(true);
     try {
-      // Step 1: Create the order on backend
-      const orderData = {
-        items: items.map((i) => ({ product: i.product, quantity: i.quantity })),
-        hostel,
-        gate,
-        note,
-        paymentMethod,
-      };
+      let shopOrderId = null;
 
-      const res = await createOrder(orderData);
-      const order = res.data.data;
+      // Step 1: Create shop order if there are shop items
+      if (items.length > 0) {
+        const orderData = {
+          items: items.map((i) => ({ product: i.product, quantity: i.quantity })),
+          hostel,
+          gate,
+          note,
+          paymentMethod,
+        };
 
-      // Step 2: If online payment, open Razorpay
-      if (paymentMethod === 'upi') {
-        try {
-          // Create Razorpay order
-          const payRes = await createPaymentOrder({
-            amount: order.total,
-            orderId: order.orderId,
-          });
-          const { razorpayOrderId, amount, keyId } = payRes.data.data;
+        const res = await createOrder(orderData);
+        const order = res.data.data;
+        shopOrderId = order.orderId;
 
-          // Open Razorpay checkout modal
-          const paymentResponse = await openRazorpay(razorpayOrderId, amount, keyId, order.orderId);
-
-          // Verify payment
-          await verifyPayment({
-            razorpay_order_id: paymentResponse.razorpay_order_id,
-            razorpay_payment_id: paymentResponse.razorpay_payment_id,
-            razorpay_signature: paymentResponse.razorpay_signature,
-          });
-
-          toast.success('Payment successful!');
-        } catch (payErr) {
-          // Order is created but payment failed — user can retry from order detail
-          toast.error(payErr.message || 'Payment failed. You can retry from your orders.');
-          clearCart();
-          navigate(`/orders/${order.orderId}`);
-          return;
+        // Handle online payment for shop order
+        if (paymentMethod === 'upi') {
+          try {
+            const payRes = await createPaymentOrder({
+              amount: order.total,
+              orderId: order.orderId,
+            });
+            const { razorpayOrderId, amount, keyId } = payRes.data.data;
+            const paymentResponse = await openRazorpay(razorpayOrderId, amount, keyId, order.orderId);
+            await verifyPayment({
+              razorpay_order_id: paymentResponse.razorpay_order_id,
+              razorpay_payment_id: paymentResponse.razorpay_payment_id,
+              razorpay_signature: paymentResponse.razorpay_signature,
+            });
+            toast.success('Payment successful!');
+          } catch (payErr) {
+            toast.error(payErr.message || 'Payment failed. You can retry from your orders.');
+            clearAll();
+            navigate(`/orders/${order.orderId}`);
+            return;
+          }
         }
       }
 
-      // Step 3: Success — clear cart and go to order
-      clearCart();
-      toast.success(paymentMethod === 'upi' ? 'Order placed & paid!' : 'Order placed!');
-      navigate(`/orders/${order.orderId}`);
+      // Step 2: Create print order if there's one in cart
+      if (printOrder) {
+        const formData = new FormData();
+        printOrder.fileItems.forEach((f) => formData.append('files', f.file));
+        const fileConfigs = printOrder.fileItems.map((f) => ({
+          pages: f.pages,
+          copies: f.copies,
+          colorMode: f.colorMode,
+          sides: f.sides,
+          orientation: f.orientation,
+        }));
+        formData.append('fileConfigs', JSON.stringify(fileConfigs));
+        formData.append('hostel', hostel);
+        formData.append('gate', gate);
+        formData.append('note', note);
+
+        await createPrintOrder(formData);
+      }
+
+      // Step 3: Success
+      clearAll();
+      if (items.length > 0 && printOrder) {
+        toast.success('Shop order & print order placed!');
+      } else if (printOrder) {
+        toast.success('Print order placed!');
+      } else {
+        toast.success(paymentMethod === 'upi' ? 'Order placed & paid!' : 'Order placed!');
+      }
+      navigate(shopOrderId ? `/orders/${shopOrderId}` : '/orders');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to place order');
     } finally {
@@ -100,10 +125,10 @@ const CheckoutPage = () => {
   };
 
   useEffect(() => {
-    if (items.length === 0) navigate('/cart');
-  }, [items.length, navigate]);
+    if (!hasAnything) navigate('/cart');
+  }, [hasAnything, navigate]);
 
-  if (items.length === 0) return null;
+  if (!hasAnything) return null;
 
   return (
     <div className="page-container">

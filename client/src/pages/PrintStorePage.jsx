@@ -6,8 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, X, Printer, Palette, File, Plus, Minus, ShieldCheck, Monitor, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
-import { getPricing, createPrintOrder } from '../services/printService';
-import { GATE_OPTIONS, HOSTEL_OPTIONS } from '../utils/constants';
+import { useCart } from '../hooks/useCart';
+import { getPricing } from '../services/printService';
 import { formatPrice } from '../utils/formatters';
 
 const getFileIcon = (name) => {
@@ -21,6 +21,7 @@ const getFileIcon = (name) => {
 
 const PrintStorePage = () => {
   const { user } = useAuth();
+  const { setPrintOrder } = useCart();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [pricing, setPricing] = useState(null);
@@ -29,14 +30,6 @@ const PrintStorePage = () => {
   // Each file has: { file, pages, copies, colorMode, sides }
   const [fileItems, setFileItems] = useState([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
-
-  const [delivery, setDelivery] = useState({
-    hostel: user?.hostel || '',
-    gate: user?.preferredGate || '',
-    note: '',
-  });
-  const [loading, setLoading] = useState(false);
-  const [showCheckout, setShowCheckout] = useState(false);
 
   useEffect(() => {
     getPricing().then((res) => setPricing(res.data.data)).catch(console.error);
@@ -85,36 +78,20 @@ const PrintStorePage = () => {
   const deliveryFee = pricing ? (totalPrice >= pricing.freeDeliveryMin ? 0 : pricing.deliveryFee) : 25;
   const grandTotal = totalPrice + deliveryFee;
 
-  const handleSubmit = async () => {
+  const handleAddToCart = () => {
     if (!user) { toast('Please login first'); navigate('/login'); return; }
     if (fileItems.length === 0) { toast.error('Upload at least one file'); return; }
-    if (!delivery.hostel || !delivery.gate) { toast.error('Select hostel and gate'); return; }
 
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      fileItems.forEach((f) => formData.append('files', f.file));
-      // Send per-file config as JSON
-      const fileConfigs = fileItems.map((f) => ({
-        pages: f.pages,
-        copies: f.copies,
-        colorMode: f.colorMode,
-        sides: f.sides,
-        orientation: f.orientation,
-      }));
-      formData.append('fileConfigs', JSON.stringify(fileConfigs));
-      formData.append('hostel', delivery.hostel);
-      formData.append('gate', delivery.gate);
-      formData.append('note', delivery.note);
+    setPrintOrder({
+      fileItems,
+      totalPages,
+      totalPrice,
+      deliveryFee,
+      grandTotal,
+    });
 
-      const res = await createPrintOrder(formData);
-      toast.success(`Print order ${res.data.data.orderId} placed!`);
-      navigate('/orders');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to place order');
-    } finally {
-      setLoading(false);
-    }
+    toast.success('Print order added to cart!');
+    navigate('/cart');
   };
 
   const selected = fileItems[selectedIdx];
@@ -246,7 +223,7 @@ const PrintStorePage = () => {
       />
 
       {/* Per-file configuration */}
-      {selected && !showCheckout && (
+      {selected && (
         <div className="ps-config-section">
           <div className="ps-config-header">
             <h3>File {selectedIdx + 1} ({selected.pages} page{selected.pages !== 1 ? 's' : ''})</h3>
@@ -362,43 +339,8 @@ const PrintStorePage = () => {
         </div>
       )}
 
-      {/* Checkout / delivery section */}
-      {showCheckout && (
-        <div className="ps-config-section">
-          <h3><Printer size={18} /> Delivery Details</h3>
-
-          <label className="input-label">Hostel *</label>
-          <select className="input" value={delivery.hostel} onChange={(e) => setDelivery({ ...delivery, hostel: e.target.value })}>
-            <option value="">Select hostel</option>
-            {HOSTEL_OPTIONS.map((h) => <option key={h} value={h}>{h}</option>)}
-          </select>
-
-          <label className="input-label">Pickup Gate *</label>
-          <select className="input" value={delivery.gate} onChange={(e) => setDelivery({ ...delivery, gate: e.target.value })}>
-            <option value="">Select gate</option>
-            {GATE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
-          </select>
-
-          <label className="input-label">Special Instructions</label>
-          <textarea
-            className="input"
-            value={delivery.note}
-            onChange={(e) => setDelivery({ ...delivery, note: e.target.value })}
-            placeholder="e.g. Print pages 1-10 only, or staple together..."
-            rows={2}
-          />
-
-          <div className="print-nav-btns">
-            <button className="btn-secondary" onClick={() => setShowCheckout(false)}>Back</button>
-            <button className="btn-primary" disabled={loading} onClick={handleSubmit}>
-              {loading ? 'Placing Order...' : `Place Order (COD) ${formatPrice(grandTotal)}`}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Sticky bottom price bar */}
-      {fileItems.length > 0 && !showCheckout && (
+      {fileItems.length > 0 && (
         <div className="ps-bottom-bar">
           <div className="ps-bottom-info">
             <Printer size={20} />
@@ -407,8 +349,8 @@ const PrintStorePage = () => {
               <span>{formatPrice(grandTotal)}</span>
             </div>
           </div>
-          <button className="ps-bottom-btn" onClick={() => setShowCheckout(true)}>
-            Proceed
+          <button className="ps-bottom-btn" onClick={handleAddToCart}>
+            Add to Cart
           </button>
         </div>
       )}

@@ -1,19 +1,20 @@
-// Cart page — shows cart items, summary, and proceed to checkout
+// Cart page — shows shop items + print order, summary, and proceed to checkout
 // Desktop: side-by-side layout (items left, summary right)
 
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, ArrowLeft, Clock } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, Clock, Printer, X } from 'lucide-react';
 import CartItem from '../components/cart/CartItem';
 import CartSummary from '../components/cart/CartSummary';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
+import { formatPrice } from '../utils/formatters';
 
 const CartPage = () => {
-  const { items, clearCart, itemCount } = useCart();
+  const { items, clearCart, itemCount, printOrder, clearPrintOrder, hasAnything } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  if (items.length === 0) {
+  if (!hasAnything) {
     return (
       <div className="page-container">
         <div className="page-header">
@@ -32,6 +33,8 @@ const CartPage = () => {
     );
   }
 
+  const totalCount = itemCount + (printOrder ? 1 : 0);
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -46,23 +49,61 @@ const CartPage = () => {
         <Clock size={16} />
         <div>
           <strong>Delivery in 15–30 mins</strong>
-          <span>Shipment of {itemCount} item{itemCount > 1 ? 's' : ''}</span>
+          <span>{totalCount} item{totalCount > 1 ? 's' : ''} in cart</span>
         </div>
       </div>
 
       <div className="cart-page-layout">
         {/* Left: cart items */}
         <div className="cart-page-left">
-          <div className="cart-items">
-            {items.map((item) => <CartItem key={item.product} item={item} />)}
-          </div>
+          {/* Shop items */}
+          {items.length > 0 && (
+            <div className="cart-items">
+              {items.map((item) => <CartItem key={item.product} item={item} />)}
+            </div>
+          )}
+
+          {/* Print order card */}
+          {printOrder && (
+            <div className="print-cart-card">
+              <div className="print-cart-header">
+                <div className="print-cart-title">
+                  <Printer size={18} />
+                  <strong>Print Order</strong>
+                </div>
+                <button className="print-cart-remove" onClick={clearPrintOrder} aria-label="Remove print order">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="print-cart-details">
+                <span>{printOrder.fileItems.length} file{printOrder.fileItems.length !== 1 ? 's' : ''}</span>
+                <span>{printOrder.totalPages} pages</span>
+              </div>
+              <div className="print-cart-files">
+                {printOrder.fileItems.map((f, i) => (
+                  <div key={i} className="print-cart-file">
+                    <span className="print-cart-file-name">{f.file.name}</span>
+                    <span className="print-cart-file-config">
+                      {f.pages}pg x {f.copies} · {f.colorMode === 'bw' ? 'B&W' : 'Color'} · {f.sides === 'double' ? '2-sided' : '1-sided'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="print-cart-footer">
+                <span className="print-cart-price">{formatPrice(printOrder.totalPrice)}</span>
+                <button className="print-cart-edit" onClick={() => navigate('/print-store')}>Edit</button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: summary + actions (sticks on desktop) */}
         <div className="cart-page-right">
           <CartSummary />
           <div className="cart-actions">
-            <button className="btn-secondary" onClick={clearCart}>Clear Cart</button>
+            {items.length > 0 && (
+              <button className="btn-secondary" onClick={clearCart}>Clear Cart</button>
+            )}
             <button className="btn-primary" onClick={() => {
               if (!user) { navigate('/login'); return; }
               navigate('/checkout');

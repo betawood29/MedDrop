@@ -1,5 +1,5 @@
-// Cart context — manages shopping cart state with localStorage persistence
-// Handles add, remove, update quantity, and clear operations
+// Cart context — manages shopping cart + print order state
+// Shop items persist to localStorage; print order stays in memory (files can't serialize)
 
 import { createContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { DELIVERY_FEE, FREE_DELIVERY_MIN } from '../utils/constants';
@@ -15,6 +15,9 @@ export const CartProvider = ({ children }) => {
       return [];
     }
   });
+
+  // Print order stored in memory (File objects can't be serialized)
+  const [printOrder, setPrintOrder] = useState(null);
 
   // Persist cart to localStorage
   useEffect(() => {
@@ -65,15 +68,30 @@ export const CartProvider = ({ children }) => {
     setItems([]);
   }, []);
 
+  const clearPrintOrder = useCallback(() => {
+    setPrintOrder(null);
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setItems([]);
+    setPrintOrder(null);
+  }, []);
+
   const subtotal = useMemo(() => items.reduce((sum, i) => sum + i.price * i.quantity, 0), [items]);
-  const deliveryFee = useMemo(() => (subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE), [subtotal]);
+  const deliveryFee = useMemo(() => {
+    const shopDelivery = items.length > 0 ? (subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE) : 0;
+    return shopDelivery;
+  }, [subtotal, items.length]);
   const total = useMemo(() => subtotal + deliveryFee, [subtotal, deliveryFee]);
   const itemCount = useMemo(() => items.reduce((sum, i) => sum + i.quantity, 0), [items]);
+
+  const hasAnything = items.length > 0 || !!printOrder;
 
   return (
     <CartContext.Provider value={{
       items, addItem, removeItem, updateQty, clearCart,
       subtotal, deliveryFee, total, itemCount,
+      printOrder, setPrintOrder, clearPrintOrder, clearAll, hasAnything,
     }}>
       {children}
     </CartContext.Provider>
