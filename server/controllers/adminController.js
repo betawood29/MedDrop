@@ -492,6 +492,29 @@ const deleteProduct = async (req, res, next) => {
 
 // --- Category CRUD ---
 
+// GET /api/admin/categories — all categories including inactive
+const getAdminCategories = async (req, res, next) => {
+  try {
+    const categories = await Category.find().sort({ displayOrder: 1, name: 1 });
+    ApiResponse.success(res, categories);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// PATCH /api/admin/categories/:id/toggle — enable/disable a category
+const toggleCategory = async (req, res, next) => {
+  try {
+    const category = await Category.findById(req.params.id);
+    if (!category) throw ApiError.notFound('Category not found');
+    category.isActive = !category.isActive;
+    await category.save();
+    ApiResponse.success(res, category, `Category ${category.isActive ? 'enabled' : 'disabled'}`);
+  } catch (err) {
+    next(err);
+  }
+};
+
 // POST /api/admin/categories
 const createCategory = async (req, res, next) => {
   try {
@@ -715,6 +738,8 @@ module.exports = {
   updateProduct,
   patchProduct,
   deleteProduct,
+  getAdminCategories,
+  toggleCategory,
   createCategory,
   updateCategory,
   deleteCategory,

@@ -6,7 +6,7 @@ import CategoryManager from '../../components/admin/CategoryManager';
 import SubCategoryManager from '../../components/admin/SubCategoryManager';
 import Loader from '../../components/common/Loader';
 import {
-  getAdminCategories, createCategory, updateCategory, deleteCategory,
+  getAdminCategories, createCategory, updateCategory, deleteCategory, toggleCategory,
   getAdminSubCategories, createSubCategory, updateSubCategory, deleteSubCategory,
 } from '../../services/adminService';
 
@@ -61,6 +61,16 @@ const AdminCategories = () => {
     }
   };
 
+  const handleToggleCat = async (id) => {
+    try {
+      const res = await toggleCategory(id);
+      toast.success(res.data.message);
+      fetchCategories();
+    } catch (err) {
+      toast.error('Failed to toggle category');
+    }
+  };
+
   const handleDeleteCat = async (id) => {
     if (!window.confirm('Delete this category?')) return;
     try {
@@ -112,6 +122,7 @@ const AdminCategories = () => {
         categories={categories}
         onCreate={handleCreateCat}
         onUpdate={handleUpdateCat}
+        onToggle={handleToggleCat}
         onDelete={handleDeleteCat}
       />
       <SubCategoryManager

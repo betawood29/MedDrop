@@ -1972,6 +1972,27 @@ img { max-width: 100%; display: block; }
 .cm-slug { font-size: 0.75rem; color: var(--text-muted); display: block; }
 .cm-order { color: var(--text-muted); font-size: 0.8rem; }
 
+/* Category disabled state */
+.cm-disabled { opacity: 0.5; }
+.cm-inactive-badge {
+  display: inline-block; background: #fee2e2; color: #dc2626; font-size: 0.65rem;
+  font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-left: 4px; vertical-align: middle;
+}
+
+/* Toggle switch */
+.cm-toggle { position: relative; display: inline-block; width: 36px; height: 20px; flex-shrink: 0; }
+.cm-toggle input { opacity: 0; width: 0; height: 0; }
+.cm-toggle-slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: #cbd5e1; border-radius: 20px; transition: 0.3s;
+}
+.cm-toggle-slider::before {
+  content: ''; position: absolute; height: 14px; width: 14px;
+  left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s;
+}
+.cm-toggle input:checked + .cm-toggle-slider { background: var(--primary); }
+.cm-toggle input:checked + .cm-toggle-slider::before { transform: translateX(16px); }
+
 /* ===== ADMIN MOBILE NAV ===== */
 .admin-mobile-nav { display: none; }
 

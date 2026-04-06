@@ -14,6 +14,8 @@ const {
   updateProduct,
   patchProduct,
   deleteProduct,
+  getAdminCategories,
+  toggleCategory,
   createCategory,
   updateCategory,
   deleteCategory,
@@ -27,7 +29,6 @@ const {
   updatePrintOrderStatus,
 } = require('../controllers/adminController');
 const { uploadExcel, downloadTemplate } = require('../controllers/uploadController');
-const { getCategories } = require('../controllers/productController');
 const { getBanners, createBanner, updateBanner, deleteBanner, uploadBannerImage } = require('../controllers/bannerController');
 
 // Admin login (no auth needed, rate limited)
@@ -57,10 +58,11 @@ router.put('/products/:id', updateProduct);
 router.patch('/products/:id', patchProduct);
 router.delete('/products/:id', deleteProduct);
 
-// Category management
-router.get('/categories', getCategories);
+// Category management (admin sees ALL including inactive)
+router.get('/categories', getAdminCategories);
 router.post('/categories', createCategory);
 router.put('/categories/:id', updateCategory);
+router.patch('/categories/:id/toggle', toggleCategory);
 router.delete('/categories/:id', deleteCategory);
 
 // Category image upload

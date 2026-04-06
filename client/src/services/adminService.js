@@ -69,6 +69,9 @@ export const updateCategory = (id, data) =>
 export const deleteCategory = (id) =>
   api.delete(`/admin/categories/${id}`, adminApi());
 
+export const toggleCategory = (id) =>
+  api.patch(`/admin/categories/${id}/toggle`, {}, adminApi());
+
 export const uploadCategoryImage = (formData) =>
   api.post('/admin/categories/upload-image', formData, {
     ...adminApi(),

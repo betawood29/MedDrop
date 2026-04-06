@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, Save, X, Upload, ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { uploadCategoryImage } from '../../services/adminService';
 
-const CategoryManager = ({ categories, onCreate, onUpdate, onDelete }) => {
+const CategoryManager = ({ categories, onCreate, onUpdate, onToggle, onDelete }) => {
   const [editing, setEditing] = useState(null);
   const [newCat, setNewCat] = useState({ name: '', icon: '📦', image: '', displayOrder: 0 });
   const [showAdd, setShowAdd] = useState(false);
@@ -136,7 +136,7 @@ const CategoryManager = ({ categories, onCreate, onUpdate, onDelete }) => {
                 </div>
               </div>
             ) : (
-              <div className="cm-display">
+              <div className={`cm-display ${!cat.isActive ? 'cm-disabled' : ''}`}>
                 <div className="cm-display-left">
                   {cat.image ? (
                     <img className="cm-thumb" src={cat.image} alt={cat.name} />
@@ -145,11 +145,15 @@ const CategoryManager = ({ categories, onCreate, onUpdate, onDelete }) => {
                   )}
                   <div>
                     <span className="cm-name">{cat.name}</span>
-                    <span className="cm-slug">{cat.slug}</span>
+                    <span className="cm-slug">{cat.slug} {!cat.isActive && <span className="cm-inactive-badge">Hidden</span>}</span>
                   </div>
                 </div>
                 <div className="cm-display-right">
                   <span className="cm-order">#{cat.displayOrder}</span>
+                  <label className="cm-toggle" title={cat.isActive ? 'Disable' : 'Enable'}>
+                    <input type="checkbox" checked={cat.isActive} onChange={() => onToggle(cat._id)} />
+                    <span className="cm-toggle-slider" />
+                  </label>
                   <button className="icon-btn-sm" onClick={() => setEditing({ ...cat })}><Pencil size={16} /></button>
                   <button className="icon-btn-sm danger" onClick={() => onDelete(cat._id)}><Trash2 size={16} /></button>
                 </div>
