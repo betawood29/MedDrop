@@ -884,6 +884,10 @@ img { max-width: 100%; display: block; }
   cursor: pointer; transition: all var(--transition);
 }
 .print-cart-edit:hover { background: var(--primary); color: white; }
+.print-cart-warning {
+  background: #fef3c7; color: #92400e; padding: 8px 12px; border-radius: var(--radius-sm);
+  font-size: 0.8rem; font-weight: 500; margin-bottom: 8px;
+}
 
 /* ===== DELIVERY FORM ===== */
 .delivery-form { background: var(--bg-white); padding: 16px; border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); }

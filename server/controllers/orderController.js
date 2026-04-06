@@ -1,5 +1,5 @@
 // Order controller — create order, list user's orders, get order details
-// Calculates delivery fee: ₹25 flat, FREE above ₹299
+// Calculates delivery fee: ₹25 flat, FREE above ₹199
 
 const Order = require('../models/Order');
 const Product = require('../models/Product');
@@ -8,7 +8,7 @@ const ApiError = require('../utils/apiError');
 const { createOrderSchema } = require('../utils/validators');
 
 const DELIVERY_FEE = 25;
-const FREE_DELIVERY_MIN = 299;
+const FREE_DELIVERY_MIN = 199;
 
 // POST /api/orders — place a new order
 const createOrder = async (req, res, next) => {

@@ -21,14 +21,19 @@ const getFileIcon = (name) => {
 
 const PrintStorePage = () => {
   const { user } = useAuth();
-  const { setPrintOrder } = useCart();
+  const { getPrintOrderWithFiles, setPrintOrder } = useCart();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [pricing, setPricing] = useState(null);
   const [uploading, setUploading] = useState(false);
 
   // Each file has: { file, pages, copies, colorMode, sides }
-  const [fileItems, setFileItems] = useState([]);
+  const [fileItems, setFileItems] = useState(() => {
+    // Restore files from cart if editing an existing print order
+    const existing = getPrintOrderWithFiles();
+    if (existing?.fileItems?.length > 0 && !existing.filesLost) return existing.fileItems;
+    return [];
+  });
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   useEffect(() => {
@@ -346,7 +351,7 @@ const PrintStorePage = () => {
             <Printer size={20} />
             <div>
               <strong>Total {totalPages} pages</strong>
-              <span>{formatPrice(grandTotal)}</span>
+              <span>{formatPrice(totalPrice)}</span>
             </div>
           </div>
           <button className="ps-bottom-btn" onClick={handleAddToCart}>

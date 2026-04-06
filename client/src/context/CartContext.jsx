@@ -1,7 +1,8 @@
 // Cart context — manages shopping cart + print order state
-// Shop items persist to localStorage; print order stays in memory (files can't serialize)
+// Shop items persist to localStorage
+// Print order: metadata persists to localStorage, File objects stored in memory
 
-import { createContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DELIVERY_FEE, FREE_DELIVERY_MIN } from '../utils/constants';
 
 export const CartContext = createContext(null);
@@ -16,13 +17,75 @@ export const CartProvider = ({ children }) => {
     }
   });
 
-  // Print order stored in memory (File objects can't be serialized)
-  const [printOrder, setPrintOrder] = useState(null);
+  // Print order: metadata in state (persisted), File refs in a ref (memory only)
+  const printFilesRef = useRef(null);
+  const [printOrder, _setPrintOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem('printOrder');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // Persist cart to localStorage
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(items));
   }, [items]);
+
+  // Persist print order metadata to localStorage
+  useEffect(() => {
+    if (printOrder) {
+      localStorage.setItem('printOrder', JSON.stringify(printOrder));
+    } else {
+      localStorage.removeItem('printOrder');
+    }
+  }, [printOrder]);
+
+  const setPrintOrder = useCallback((order) => {
+    if (order) {
+      // Store File objects separately in memory
+      printFilesRef.current = order.fileItems;
+      // Store serializable metadata
+      _setPrintOrder({
+        fileItems: order.fileItems.map((f) => ({
+          // Serializable fields only
+          name: f.file?.name || f.name,
+          size: f.file?.size || f.size || 0,
+          pages: f.pages,
+          copies: f.copies,
+          colorMode: f.colorMode,
+          sides: f.sides,
+          orientation: f.orientation,
+          preview: null, // Can't serialize blob URLs
+        })),
+        totalPages: order.totalPages,
+        totalPrice: order.totalPrice,
+        deliveryFee: order.deliveryFee,
+        grandTotal: order.grandTotal,
+        hasFiles: true, // Files are in memory
+      });
+    } else {
+      printFilesRef.current = null;
+      _setPrintOrder(null);
+    }
+  }, []);
+
+  // Get print order with File objects attached (for submission and edit)
+  const getPrintOrderWithFiles = useCallback(() => {
+    if (!printOrder) return null;
+    if (printFilesRef.current) {
+      return { ...printOrder, fileItems: printFilesRef.current };
+    }
+    // Files lost (page refresh) — return metadata with flag
+    return { ...printOrder, filesLost: true };
+  }, [printOrder]);
+
+  const clearPrintOrder = useCallback(() => {
+    printFilesRef.current = null;
+    _setPrintOrder(null);
+    localStorage.removeItem('printOrder');
+  }, []);
 
   const addItem = useCallback((product, qty = 1) => {
     setItems((prev) => {
@@ -68,21 +131,20 @@ export const CartProvider = ({ children }) => {
     setItems([]);
   }, []);
 
-  const clearPrintOrder = useCallback(() => {
-    setPrintOrder(null);
-  }, []);
-
   const clearAll = useCallback(() => {
     setItems([]);
-    setPrintOrder(null);
-  }, []);
+    clearPrintOrder();
+  }, [clearPrintOrder]);
 
-  const subtotal = useMemo(() => items.reduce((sum, i) => sum + i.price * i.quantity, 0), [items]);
+  // Combined totals — delivery is based on total order value
+  const shopSubtotal = useMemo(() => items.reduce((sum, i) => sum + i.price * i.quantity, 0), [items]);
+  const printSubtotal = useMemo(() => printOrder?.totalPrice || 0, [printOrder]);
+  const combinedSubtotal = shopSubtotal + printSubtotal;
   const deliveryFee = useMemo(() => {
-    const shopDelivery = items.length > 0 ? (subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE) : 0;
-    return shopDelivery;
-  }, [subtotal, items.length]);
-  const total = useMemo(() => subtotal + deliveryFee, [subtotal, deliveryFee]);
+    if (items.length === 0 && !printOrder) return 0;
+    return combinedSubtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE;
+  }, [combinedSubtotal, items.length, printOrder]);
+  const total = combinedSubtotal + deliveryFee;
   const itemCount = useMemo(() => items.reduce((sum, i) => sum + i.quantity, 0), [items]);
 
   const hasAnything = items.length > 0 || !!printOrder;
@@ -90,8 +152,8 @@ export const CartProvider = ({ children }) => {
   return (
     <CartContext.Provider value={{
       items, addItem, removeItem, updateQty, clearCart,
-      subtotal, deliveryFee, total, itemCount,
-      printOrder, setPrintOrder, clearPrintOrder, clearAll, hasAnything,
+      subtotal: shopSubtotal, printSubtotal, deliveryFee, total, itemCount,
+      printOrder, setPrintOrder, getPrintOrderWithFiles, clearPrintOrder, clearAll, hasAnything,
     }}>
       {children}
     </CartContext.Provider>

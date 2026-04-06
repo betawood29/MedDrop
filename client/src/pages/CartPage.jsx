@@ -79,10 +79,18 @@ const CartPage = () => {
                 <span>{printOrder.fileItems.length} file{printOrder.fileItems.length !== 1 ? 's' : ''}</span>
                 <span>{printOrder.totalPages} pages</span>
               </div>
+
+              {/* Show re-upload warning if files were lost on refresh */}
+              {printOrder.filesLost && (
+                <div className="print-cart-warning">
+                  Files were lost on page refresh. Please re-add from Print Store.
+                </div>
+              )}
+
               <div className="print-cart-files">
                 {printOrder.fileItems.map((f, i) => (
                   <div key={i} className="print-cart-file">
-                    <span className="print-cart-file-name">{f.file.name}</span>
+                    <span className="print-cart-file-name">{f.name || f.file?.name}</span>
                     <span className="print-cart-file-config">
                       {f.pages}pg x {f.copies} · {f.colorMode === 'bw' ? 'B&W' : 'Color'} · {f.sides === 'double' ? '2-sided' : '1-sided'}
                     </span>

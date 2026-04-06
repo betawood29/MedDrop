@@ -1,9 +1,9 @@
-// Payment routes — Razorpay order creation and verification
+// Payment routes — initiate payment and verify + create order
 const router = require('express').Router();
-const { createPaymentOrder, verifyPaymentHandler } = require('../controllers/paymentController');
+const { initiatePayment, verifyAndCreateOrder } = require('../controllers/paymentController');
 const protect = require('../middleware/auth');
 
-router.post('/create-order', protect, createPaymentOrder);
-router.post('/verify', protect, verifyPaymentHandler);
+router.post('/initiate', protect, initiatePayment);
+router.post('/verify', protect, verifyAndCreateOrder);
 
 module.exports = router;

@@ -1,14 +1,13 @@
-// Order service — create orders, fetch user's orders, handle payments
+// Order service — fetch orders, initiate payment, verify & create order
 
 import api from './api';
-
-export const createOrder = (data) => api.post('/orders', data);
 
 export const getOrders = () => api.get('/orders');
 
 export const getOrder = (id) => api.get(`/orders/${id}`);
 
-// Razorpay payment
-export const createPaymentOrder = (data) => api.post('/payments/create-order', data);
+// Step 1: Initiate payment — validates cart, creates Razorpay order (no real order yet)
+export const initiatePayment = (data) => api.post('/payments/initiate', data);
 
-export const verifyPayment = (data) => api.post('/payments/verify', data);
+// Step 2: Verify payment & create order — only called after successful payment
+export const verifyAndCreateOrder = (data) => api.post('/payments/verify', data);

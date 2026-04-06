@@ -5,7 +5,7 @@ const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
 
 const DELIVERY_FEE = 25;
-const FREE_DELIVERY_MIN = 299;
+const FREE_DELIVERY_MIN = 199;
 
 // POST /api/print/order — create a print order
 const createPrintOrder = async (req, res, next) => {

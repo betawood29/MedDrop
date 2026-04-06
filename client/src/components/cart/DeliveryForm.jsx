@@ -1,7 +1,6 @@
-// Delivery form — hostel, gate, payment method selection, and optional note
+// Delivery form — hostel, gate selection, and optional note for the order
 
 import { useState } from 'react';
-import { Banknote, CreditCard } from 'lucide-react';
 import { GATE_OPTIONS, HOSTEL_OPTIONS } from '../../utils/constants';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -10,17 +9,14 @@ const DeliveryForm = ({ onSubmit, loading }) => {
   const [hostel, setHostel] = useState(user?.hostel || '');
   const [gate, setGate] = useState(user?.preferredGate || '');
   const [note, setNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cod');
   const [error, setError] = useState('');
-
-  const razorpayEnabled = !!import.meta.env.VITE_RAZORPAY_KEY_ID;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!hostel) { setError('Please select your hostel'); return; }
     if (!gate) { setError('Please select pickup gate'); return; }
     setError('');
-    onSubmit({ hostel, gate, note, paymentMethod });
+    onSubmit({ hostel, gate, note });
   };
 
   return (
@@ -48,39 +44,10 @@ const DeliveryForm = ({ onSubmit, loading }) => {
         rows={2}
       />
 
-      <label className="input-label">Payment Method *</label>
-      <div className="payment-methods">
-        <button
-          type="button"
-          className={`payment-option ${paymentMethod === 'cod' ? 'active' : ''}`}
-          onClick={() => setPaymentMethod('cod')}
-        >
-          <Banknote size={20} />
-          <div>
-            <span className="payment-option-title">Cash on Delivery</span>
-            <span className="payment-option-desc">Pay when you receive</span>
-          </div>
-        </button>
-
-        {razorpayEnabled && (
-          <button
-            type="button"
-            className={`payment-option ${paymentMethod === 'upi' ? 'active' : ''}`}
-            onClick={() => setPaymentMethod('upi')}
-          >
-            <CreditCard size={20} />
-            <div>
-              <span className="payment-option-title">Pay Online</span>
-              <span className="payment-option-desc">UPI, Cards, Wallets</span>
-            </div>
-          </button>
-        )}
-      </div>
-
       {error && <p className="error-text">{error}</p>}
 
       <button type="submit" className="btn-primary" disabled={loading}>
-        {loading ? 'Placing Order...' : paymentMethod === 'upi' ? 'Place Order & Pay' : 'Place Order (COD)'}
+        {loading ? 'Processing...' : 'Place Order & Pay'}
       </button>
     </form>
   );

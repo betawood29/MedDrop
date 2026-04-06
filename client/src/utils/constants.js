@@ -5,7 +5,7 @@ export const API_BASE_URL = API_URL.replace('/api', '');
 export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE_URL;
 
 export const DELIVERY_FEE = 25;
-export const FREE_DELIVERY_MIN = 299;
+export const FREE_DELIVERY_MIN = 199;
 
 export const GATE_OPTIONS = ['Main Gate', 'Back Gate', 'Side Gate (Library)'];
 

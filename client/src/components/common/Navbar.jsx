@@ -9,7 +9,8 @@ import { useAuth } from '../../hooks/useAuth';
 import GlobalSearch from './GlobalSearch';
 
 const Navbar = () => {
-  const { itemCount } = useCart();
+  const { itemCount, printOrder } = useCart();
+  const badgeCount = itemCount + (printOrder ? 1 : 0);
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,7 +57,7 @@ const Navbar = () => {
         <div className="navbar-actions">
           <button className="icon-btn" onClick={() => navigate('/cart')} aria-label="Cart">
             <ShoppingCart size={22} />
-            {itemCount > 0 && <span className="badge">{itemCount}</span>}
+            {badgeCount > 0 && <span className="badge">{badgeCount}</span>}
           </button>
           {user ? (
             <button className="icon-btn" onClick={() => navigate('/profile')} aria-label="Profile">

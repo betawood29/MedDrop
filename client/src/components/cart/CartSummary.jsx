@@ -1,19 +1,16 @@
-// Cart summary — subtotal, print order, delivery fee, total
+// Cart summary — combined subtotal, delivery fee based on total order value
 
 import { useCart } from '../../hooks/useCart';
 import { formatPrice } from '../../utils/formatters';
 import { FREE_DELIVERY_MIN } from '../../utils/constants';
 
 const CartSummary = () => {
-  const { subtotal, deliveryFee, printOrder } = useCart();
+  const { subtotal, printSubtotal, deliveryFee, total } = useCart();
 
-  const printTotal = printOrder ? printOrder.totalPrice : 0;
-  const printDelivery = printOrder ? printOrder.deliveryFee : 0;
-  const combinedSubtotal = subtotal + printTotal;
-  const combinedDelivery = deliveryFee + printDelivery;
-  const grandTotal = combinedSubtotal + combinedDelivery;
-
-  const amountForFree = subtotal > 0 ? FREE_DELIVERY_MIN - subtotal : 0;
+  const combinedSubtotal = subtotal + printSubtotal;
+  const amountForFree = combinedSubtotal > 0 && combinedSubtotal < FREE_DELIVERY_MIN
+    ? FREE_DELIVERY_MIN - combinedSubtotal
+    : 0;
 
   return (
     <div className="cart-summary">
@@ -21,34 +18,34 @@ const CartSummary = () => {
 
       {amountForFree > 0 && (
         <div className="free-delivery-hint">
-          Add {formatPrice(amountForFree)} more for FREE delivery on shop items!
+          Add {formatPrice(amountForFree)} more for FREE delivery!
         </div>
       )}
 
       {subtotal > 0 && (
         <div className="summary-row">
-          <span>Shop Subtotal</span>
+          <span>Shop Items</span>
           <span>{formatPrice(subtotal)}</span>
         </div>
       )}
 
-      {printOrder && (
+      {printSubtotal > 0 && (
         <div className="summary-row">
           <span>Print Order</span>
-          <span>{formatPrice(printTotal)}</span>
+          <span>{formatPrice(printSubtotal)}</span>
         </div>
       )}
 
       <div className="summary-row">
         <span>Delivery Fee</span>
-        <span className={combinedDelivery === 0 ? 'text-green' : ''}>
-          {combinedDelivery === 0 ? 'FREE' : formatPrice(combinedDelivery)}
+        <span className={deliveryFee === 0 ? 'text-green' : ''}>
+          {deliveryFee === 0 ? 'FREE' : formatPrice(deliveryFee)}
         </span>
       </div>
 
       <div className="summary-row summary-total">
         <span>Total</span>
-        <span>{formatPrice(grandTotal)}</span>
+        <span>{formatPrice(total)}</span>
       </div>
     </div>
   );
