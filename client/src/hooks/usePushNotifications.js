@@ -39,8 +39,12 @@ export const usePushNotifications = () => {
     if (!supported || !user) return;
     setLoading(true);
     try {
-      const keyRes = await getVapidPublicKey();
-      const vapidKey = keyRes.data.data;
+      // Try env var first (avoids extra API call), fall back to server
+      let vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      if (!vapidKey) {
+        const keyRes = await getVapidPublicKey();
+        vapidKey = keyRes.data.data;
+      }
       if (!vapidKey) throw new Error('VAPID key not configured');
 
       const subscription = await subscribeToPush(vapidKey);
