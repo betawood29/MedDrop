@@ -1,13 +1,19 @@
 // Cart context — manages shopping cart + print order state
-// Shop items persist to localStorage
+// Shop items persist to localStorage AND sync to server (cross-device)
 // Print order: metadata persists to localStorage, File objects stored in memory
 
 import { createContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DELIVERY_FEE, FREE_DELIVERY_MIN } from '../utils/constants';
+import { useAuth } from '../hooks/useAuth';
+import { getServerCart, saveServerCart } from '../services/cartService';
 
 export const CartContext = createContext(null);
 
 export const CartProvider = ({ children }) => {
+  const { user } = useAuth();
+  const syncTimeoutRef = useRef(null);
+  const isSyncingRef = useRef(false); // prevent save loop when loading from server
+
   const [items, setItems] = useState(() => {
     try {
       const saved = localStorage.getItem('cart');
@@ -42,14 +48,76 @@ export const CartProvider = ({ children }) => {
     }
   }, [printOrder]);
 
+  // --- Server sync ---
+
+  // Load server cart when user logs in; merge with local cart
+  useEffect(() => {
+    if (!user) return;
+
+    isSyncingRef.current = true;
+    getServerCart()
+      .then((res) => {
+        const serverItems = res.data.data || [];
+
+        setItems((localItems) => {
+          if (serverItems.length === 0 && localItems.length === 0) {
+            isSyncingRef.current = false;
+            return localItems;
+          }
+
+          // Merge: start with server items, add any local items not already in server
+          const merged = [...serverItems];
+          localItems.forEach((local) => {
+            const exists = merged.find((s) => s.product === local.product);
+            if (!exists) merged.push(local);
+          });
+
+          // If merged differs from server, save back to server
+          if (merged.length !== serverItems.length) {
+            saveServerCart(merged.map((i) => ({ product: i.product, quantity: i.quantity })))
+              .catch(() => {});
+          }
+
+          isSyncingRef.current = false;
+          return merged;
+        });
+      })
+      .catch(() => {
+        isSyncingRef.current = false;
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id]);
+
+  // Clear local cart when user logs out
+  useEffect(() => {
+    if (!user) {
+      setItems([]);
+      localStorage.removeItem('cart');
+    }
+  }, [user]);
+
+  // Debounced save to server on every cart change (only when logged in)
+  useEffect(() => {
+    if (!user || isSyncingRef.current) return;
+
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    syncTimeoutRef.current = setTimeout(() => {
+      saveServerCart(items.map((i) => ({ product: i.product, quantity: i.quantity })))
+        .catch(() => {});
+    }, 800);
+
+    return () => {
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    };
+  }, [items, user]);
+
+  // --- Print order ---
+
   const setPrintOrder = useCallback((order) => {
     if (order) {
-      // Store File objects separately in memory
       printFilesRef.current = order.fileItems;
-      // Store serializable metadata
       _setPrintOrder({
         fileItems: order.fileItems.map((f) => ({
-          // Serializable fields only
           name: f.file?.name || f.name,
           size: f.file?.size || f.size || 0,
           pages: f.pages,
@@ -57,13 +125,13 @@ export const CartProvider = ({ children }) => {
           colorMode: f.colorMode,
           sides: f.sides,
           orientation: f.orientation,
-          preview: null, // Can't serialize blob URLs
+          preview: null,
         })),
         totalPages: order.totalPages,
         totalPrice: order.totalPrice,
         deliveryFee: order.deliveryFee,
         grandTotal: order.grandTotal,
-        hasFiles: true, // Files are in memory
+        hasFiles: true,
       });
     } else {
       printFilesRef.current = null;
@@ -71,13 +139,11 @@ export const CartProvider = ({ children }) => {
     }
   }, []);
 
-  // Get print order with File objects attached (for submission and edit)
   const getPrintOrderWithFiles = useCallback(() => {
     if (!printOrder) return null;
     if (printFilesRef.current) {
       return { ...printOrder, fileItems: printFilesRef.current };
     }
-    // Files lost (page refresh) — return metadata with flag
     return { ...printOrder, filesLost: true };
   }, [printOrder]);
 
@@ -86,6 +152,8 @@ export const CartProvider = ({ children }) => {
     _setPrintOrder(null);
     localStorage.removeItem('printOrder');
   }, []);
+
+  // --- Cart actions ---
 
   const addItem = useCallback((product, qty = 1) => {
     setItems((prev) => {
@@ -136,7 +204,8 @@ export const CartProvider = ({ children }) => {
     clearPrintOrder();
   }, [clearPrintOrder]);
 
-  // Combined totals — delivery is based on total order value
+  // --- Totals ---
+
   const shopSubtotal = useMemo(() => items.reduce((sum, i) => sum + i.price * i.quantity, 0), [items]);
   const printSubtotal = useMemo(() => printOrder?.totalPrice || 0, [printOrder]);
   const combinedSubtotal = shopSubtotal + printSubtotal;
