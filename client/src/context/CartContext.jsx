@@ -57,7 +57,20 @@ export const CartProvider = ({ children }) => {
     isSyncingRef.current = true;
     getServerCart()
       .then((res) => {
-        const serverItems = res.data.data || [];
+        const raw = res.data.data || [];
+
+        // Server returns populated product objects — normalize to the flat shape used locally
+        const serverItems = raw.map((item) => {
+          const p = item.product;
+          return {
+            product: p._id || p,           // always a string ID
+            name: p.name || item.name,
+            price: p.price ?? item.price,
+            image: p.image || item.image,
+            quantity: item.quantity,
+            stockQty: p.stockQty ?? item.stockQty ?? 0,
+          };
+        });
 
         setItems((localItems) => {
           if (serverItems.length === 0 && localItems.length === 0) {
@@ -65,20 +78,21 @@ export const CartProvider = ({ children }) => {
             return localItems;
           }
 
-          // Merge: start with server items, add any local items not already in server
+          // Merge: server is source of truth; add any local-only items on top
           const merged = [...serverItems];
           localItems.forEach((local) => {
-            const exists = merged.find((s) => s.product === local.product);
+            const exists = merged.find((s) => String(s.product) === String(local.product));
             if (!exists) merged.push(local);
           });
 
-          // If merged differs from server, save back to server
+          // Push merged back to server if we added local-only items
           if (merged.length !== serverItems.length) {
             saveServerCart(merged.map((i) => ({ product: i.product, quantity: i.quantity })))
               .catch(() => {});
           }
 
-          isSyncingRef.current = false;
+          // Delay clearing the flag so the debounced-save effect skips this update
+          setTimeout(() => { isSyncingRef.current = false; }, 100);
           return merged;
         });
       })
