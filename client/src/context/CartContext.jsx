@@ -13,7 +13,8 @@ export const CartContext = createContext(null);
 export const CartProvider = ({ children }) => {
   const { user, loading: authLoading } = useAuth();
   const syncTimeoutRef = useRef(null);
-  const isSyncingRef = useRef(false); // prevent save loop when loading from server
+  const isSyncingRef = useRef(false);  // prevent save loop when loading from server
+  const justSavedRef = useRef(false);  // skip socket echo on the device that just saved
 
   const [items, setItems] = useState(() => {
     try {
@@ -121,36 +122,33 @@ export const CartProvider = ({ children }) => {
       socket.emit('join-user', user._id);
     });
 
-    socket.on('cart-update', (serverItems) => {
-      // Normalize and apply — mark as syncing so debounced save doesn't echo back
+    socket.on('cart-update', () => {
+      // Skip if this tab just triggered the save (echo suppression)
+      if (justSavedRef.current) return;
+
+      // Re-fetch full populated cart so we get name/price/image for new items
       isSyncingRef.current = true;
-      const normalized = serverItems.map((item) => {
-        const p = item.product;
-        if (p && typeof p === 'object') {
-          return {
-            product: p._id || p,
-            name: p.name || item.name,
-            price: p.price ?? item.price,
-            image: p.image || item.image,
-            quantity: item.quantity,
-            stockQty: p.stockQty ?? item.stockQty ?? 0,
-          };
-        }
-        // Already flat (just id + quantity from server broadcast)
-        return item;
-      });
-      setItems((current) => {
-        // Merge: keep local display fields (name/price/image) for items already in cart
-        return normalized.map((incoming) => {
-          const existing = current.find((c) => String(c.product) === String(incoming.product));
-          return existing ? { ...existing, quantity: incoming.quantity } : incoming;
-        });
-      });
-      setTimeout(() => { isSyncingRef.current = false; }, 100);
+      getServerCart()
+        .then((res) => {
+          const raw = res.data.data || [];
+          const normalized = raw.map((item) => {
+            const p = item.product;
+            return {
+              product: p._id || p,
+              name: p.name || item.name,
+              price: p.price ?? item.price,
+              image: p.image || item.image,
+              quantity: item.quantity,
+              stockQty: p.stockQty ?? item.stockQty ?? 0,
+            };
+          });
+          setItems(normalized);
+          setTimeout(() => { isSyncingRef.current = false; }, 100);
+        })
+        .catch(() => { isSyncingRef.current = false; });
     });
 
     return () => socket.disconnect();
-  // user._id is sufficient — reconnect only when the logged-in user changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?._id, authLoading]);
 
@@ -160,8 +158,11 @@ export const CartProvider = ({ children }) => {
 
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = setTimeout(() => {
+      justSavedRef.current = true;
       saveServerCart(items.map((i) => ({ product: i.product, quantity: i.quantity })))
-        .catch(() => {});
+        .finally(() => {
+          setTimeout(() => { justSavedRef.current = false; }, 1000);
+        });
     }, 800);
 
     return () => {
