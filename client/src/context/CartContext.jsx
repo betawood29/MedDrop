@@ -10,7 +10,7 @@ import { getServerCart, saveServerCart } from '../services/cartService';
 export const CartContext = createContext(null);
 
 export const CartProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const syncTimeoutRef = useRef(null);
   const isSyncingRef = useRef(false); // prevent save loop when loading from server
 
@@ -52,7 +52,7 @@ export const CartProvider = ({ children }) => {
 
   // Load server cart when user logs in; merge with local cart
   useEffect(() => {
-    if (!user) return;
+    if (authLoading || !user) return;
 
     isSyncingRef.current = true;
     getServerCart()
@@ -100,19 +100,19 @@ export const CartProvider = ({ children }) => {
         isSyncingRef.current = false;
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?._id]);
+  }, [user?._id, authLoading]);
 
-  // Clear local cart when user logs out
+  // Clear local cart when user logs out (only after auth has finished loading)
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       setItems([]);
       localStorage.removeItem('cart');
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   // Debounced save to server on every cart change (only when logged in)
   useEffect(() => {
-    if (!user || isSyncingRef.current) return;
+    if (authLoading || !user || isSyncingRef.current) return;
 
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = setTimeout(() => {
@@ -123,7 +123,7 @@ export const CartProvider = ({ children }) => {
     return () => {
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
-  }, [items, user]);
+  }, [items, user, authLoading]);
 
   // --- Print order ---
 
