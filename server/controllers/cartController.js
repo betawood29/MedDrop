@@ -35,6 +35,15 @@ const saveCart = async (req, res, next) => {
       .map((i) => ({ product: i.product, quantity: Number(i.quantity) }));
 
     await User.findByIdAndUpdate(req.user._id, { cart: cartItems });
+
+    // Broadcast to all other sessions of this user (other devices/tabs)
+    try {
+      const { getIO } = require('../config/socket');
+      getIO().to(`user_${req.user._id}`).emit('cart-update', cartItems);
+    } catch {
+      // Socket not initialized
+    }
+
     ApiResponse.success(res, cartItems, 'Cart saved');
   } catch (err) {
     next(err);

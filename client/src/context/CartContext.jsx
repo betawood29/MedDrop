@@ -3,7 +3,8 @@
 // Print order: metadata persists to localStorage, File objects stored in memory
 
 import { createContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { DELIVERY_FEE, FREE_DELIVERY_MIN } from '../utils/constants';
+import { io } from 'socket.io-client';
+import { DELIVERY_FEE, FREE_DELIVERY_MIN, SOCKET_URL } from '../utils/constants';
 import { useAuth } from '../hooks/useAuth';
 import { getServerCart, saveServerCart } from '../services/cartService';
 
@@ -109,6 +110,49 @@ export const CartProvider = ({ children }) => {
       localStorage.removeItem('cart');
     }
   }, [user, authLoading]);
+
+  // Real-time cart sync — listen for cart-update from other tabs/devices
+  useEffect(() => {
+    if (authLoading || !user) return;
+
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      socket.emit('join-user', user._id);
+    });
+
+    socket.on('cart-update', (serverItems) => {
+      // Normalize and apply — mark as syncing so debounced save doesn't echo back
+      isSyncingRef.current = true;
+      const normalized = serverItems.map((item) => {
+        const p = item.product;
+        if (p && typeof p === 'object') {
+          return {
+            product: p._id || p,
+            name: p.name || item.name,
+            price: p.price ?? item.price,
+            image: p.image || item.image,
+            quantity: item.quantity,
+            stockQty: p.stockQty ?? item.stockQty ?? 0,
+          };
+        }
+        // Already flat (just id + quantity from server broadcast)
+        return item;
+      });
+      setItems((current) => {
+        // Merge: keep local display fields (name/price/image) for items already in cart
+        return normalized.map((incoming) => {
+          const existing = current.find((c) => String(c.product) === String(incoming.product));
+          return existing ? { ...existing, quantity: incoming.quantity } : incoming;
+        });
+      });
+      setTimeout(() => { isSyncingRef.current = false; }, 100);
+    });
+
+    return () => socket.disconnect();
+  // user._id is sufficient — reconnect only when the logged-in user changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id, authLoading]);
 
   // Debounced save to server on every cart change (only when logged in)
   useEffect(() => {
