@@ -306,11 +306,15 @@ const updateOrderStatus = async (req, res, next) => {
       // Socket not initialized
     }
 
-    // Send notification (async, don't block response)
+    // Send SMS/WhatsApp notification
     const { sendOrderNotification, orderStatusMessages } = require('../services/notificationService');
     if (orderStatusMessages[status] && order.user?.phone) {
       sendOrderNotification(order.user.phone, orderStatusMessages[status](order.orderId)).catch(console.error);
     }
+
+    // Send Web Push notification to all subscribed devices
+    const { sendOrderPush } = require('../services/pushService');
+    sendOrderPush(order.user, order.orderId, status).catch(() => {});
 
     ApiResponse.success(res, { orderId: order.orderId, status: order.status }, `Order status updated to ${status}`);
   } catch (err) {

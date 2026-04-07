@@ -42,6 +42,15 @@ const userSchema = new mongoose.Schema(
         quantity: { type: Number, default: 1, min: 1 },
       },
     ],
+    pushSubscriptions: [
+      {
+        endpoint: { type: String, required: true },
+        keys: {
+          p256dh: { type: String },
+          auth: { type: String },
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

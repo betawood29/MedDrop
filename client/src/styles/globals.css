@@ -2528,6 +2528,38 @@ img { max-width: 100%; display: block; }
   .admin-banner-fields { flex: 1; }
 }
 
+/* Push notification permission prompt */
+.push-prompt {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  border: 1.5px solid #e8e8e8;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 1200;
+  width: calc(100% - 32px);
+  max-width: 420px;
+  animation: slideUp 0.3s ease;
+}
+.push-prompt-icon { font-size: 1.6rem; flex-shrink: 0; }
+.push-prompt-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.push-prompt-text strong { font-size: 0.88rem; color: #111; }
+.push-prompt-text span { font-size: 0.78rem; color: #666; }
+.push-prompt-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex-shrink: 0; }
+.push-prompt-btn { padding: 7px 16px; font-size: 0.82rem; border-radius: 8px; white-space: nowrap; }
+.push-prompt-dismiss { background: none; border: none; font-size: 0.76rem; color: #999; cursor: pointer; padding: 2px 4px; }
+.push-prompt-dismiss:hover { color: #555; }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 @media (min-width: 1441px) {
   .admin-sidebar { width: 240px; }
   .admin-content { margin-left: 240px; padding: 32px 40px; }

@@ -1,11 +1,11 @@
-// Global order notifications — listens for real-time order updates on any page
-// Connects to user-specific socket room and shows toast for status changes
+// Global order notifications — real-time toast updates + Web Push permission prompt
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import { useAuth } from '../../hooks/useAuth';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { ORDER_STATUSES, SOCKET_URL } from '../../utils/constants';
 
 const STATUS_ICONS = {
@@ -17,11 +17,38 @@ const STATUS_ICONS = {
   cancelled: '❌',
 };
 
+const PROMPT_KEY = 'push-prompt-dismissed';
+
 const OrderNotifications = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const socketRef = useRef(null);
+  const { supported, permission, subscribed, loading, enable } = usePushNotifications();
+  const [showPrompt, setShowPrompt] = useState(false);
 
+  // Show push permission prompt once per session to logged-in users
+  useEffect(() => {
+    if (!user || !supported) return;
+    if (permission === 'granted' || subscribed) return;
+    if (permission === 'denied') return;
+    if (sessionStorage.getItem(PROMPT_KEY)) return;
+
+    // Delay slightly so it doesn't pop immediately on login
+    const timer = setTimeout(() => setShowPrompt(true), 3000);
+    return () => clearTimeout(timer);
+  }, [user, supported, permission, subscribed]);
+
+  const handleEnable = async () => {
+    setShowPrompt(false);
+    await enable();
+  };
+
+  const handleDismiss = () => {
+    setShowPrompt(false);
+    sessionStorage.setItem(PROMPT_KEY, '1');
+  };
+
+  // Socket — real-time in-app toasts
   useEffect(() => {
     if (!user?.id) return;
 
@@ -74,12 +101,26 @@ const OrderNotifications = () => {
       );
     });
 
-    return () => {
-      socket.disconnect();
-    };
+    return () => socket.disconnect();
   }, [user?.id, navigate]);
 
-  return null; // This component only handles side effects
+  if (!showPrompt) return null;
+
+  return (
+    <div className="push-prompt">
+      <div className="push-prompt-icon">🔔</div>
+      <div className="push-prompt-text">
+        <strong>Stay updated on your orders</strong>
+        <span>Get notified even when you're not on the site</span>
+      </div>
+      <div className="push-prompt-actions">
+        <button className="btn-primary push-prompt-btn" onClick={handleEnable} disabled={loading}>
+          {loading ? 'Enabling...' : 'Enable'}
+        </button>
+        <button className="push-prompt-dismiss" onClick={handleDismiss}>Not now</button>
+      </div>
+    </div>
+  );
 };
 
 export default OrderNotifications;

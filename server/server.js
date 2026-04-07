@@ -25,6 +25,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const printRoutes = require('./routes/printRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const cartRoutes = require('./routes/cartRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const { getCategories, getSubCategories, getSubCategoryProducts, searchProducts, getTrendingByCategory } = require('./controllers/productController');
 
 const app = express();
@@ -95,6 +96,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/print', printRoutes);
 app.use('/api/banner', bannerRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Serve uploaded files (print store files)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
