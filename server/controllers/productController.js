@@ -147,11 +147,15 @@ const searchProducts = async (req, res, next) => {
     const query = q.trim();
     const parsedLimit = Math.min(50, Math.max(1, parseInt(limit) || 20));
 
+    // Only return products from active categories
+    const activeCategories = await Category.find({ isActive: true }).select('_id').lean();
+    const activeCategoryIds = activeCategories.map((c) => c._id);
+
     // Strategy 1: $text search (uses index, ranked by relevance)
     let products = [];
     try {
       products = await Product.find(
-        { $text: { $search: query }, isActive: true },
+        { $text: { $search: query }, isActive: true, category: { $in: activeCategoryIds } },
         { score: { $meta: 'textScore' } }
       )
         .populate('category', 'name slug icon image')
@@ -170,6 +174,7 @@ const searchProducts = async (req, res, next) => {
       const regexResults = await Product.find({
         _id: { $nin: existingIds },
         isActive: true,
+        category: { $in: activeCategoryIds },
         $or: [
           { name: { $regex: escaped, $options: 'i' } },
           { tags: { $regex: escaped, $options: 'i' } },
