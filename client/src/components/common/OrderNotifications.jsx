@@ -18,6 +18,8 @@ const STATUS_ICONS = {
 };
 
 const PROMPT_KEY = 'push-prompt-dismissed';
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandaloneMode = window.navigator.standalone === true;
 
 const OrderNotifications = () => {
   const { user } = useAuth();
@@ -25,16 +27,21 @@ const OrderNotifications = () => {
   const socketRef = useRef(null);
   const { supported, permission, subscribed, loading, enable } = usePushNotifications();
   const [showPrompt, setShowPrompt] = useState(false);
+  const [showIOSHint, setShowIOSHint] = useState(false);
 
   // Show push permission prompt once per session to logged-in users
   useEffect(() => {
-    if (!user || !supported) return;
-    if (permission === 'granted' || subscribed) return;
-    if (permission === 'denied') return;
+    if (!user) return;
     if (sessionStorage.getItem(PROMPT_KEY)) return;
 
-    // Delay slightly so it doesn't pop immediately on login
-    const timer = setTimeout(() => setShowPrompt(true), 3000);
+    const timer = setTimeout(() => {
+      if (isIOS && !isInStandaloneMode) {
+        // iPhone in Safari — show "add to home screen" hint instead
+        setShowIOSHint(true);
+      } else if (supported && permission !== 'granted' && permission !== 'denied' && !subscribed) {
+        setShowPrompt(true);
+      }
+    }, 3000);
     return () => clearTimeout(timer);
   }, [user, supported, permission, subscribed]);
 
@@ -104,7 +111,22 @@ const OrderNotifications = () => {
     return () => socket.disconnect();
   }, [user?.id, navigate]);
 
-  if (!showPrompt) return null;
+  if (!showPrompt && !showIOSHint) return null;
+
+  if (showIOSHint) {
+    return (
+      <div className="push-prompt">
+        <div className="push-prompt-icon">📲</div>
+        <div className="push-prompt-text">
+          <strong>Get order notifications on iPhone</strong>
+          <span>Tap <b>Share</b> → <b>Add to Home Screen</b> to enable push notifications</span>
+        </div>
+        <div className="push-prompt-actions">
+          <button className="push-prompt-dismiss" onClick={handleDismiss}>Got it</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="push-prompt">
