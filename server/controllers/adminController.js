@@ -306,17 +306,22 @@ const updateOrderStatus = async (req, res, next) => {
       // Socket not initialized
     }
 
-    // Send SMS/WhatsApp notification
-    const { sendOrderNotification, orderStatusMessages } = require('../services/notificationService');
-    if (orderStatusMessages[status] && order.user?.phone) {
-      sendOrderNotification(order.user.phone, orderStatusMessages[status](order.orderId)).catch(console.error);
-    }
-
-    // Send Web Push notification to all subscribed devices
-    const { sendOrderPush } = require('../services/pushService');
-    sendOrderPush(order.user, order.orderId, status).catch(() => {});
-
+    // Respond immediately — notifications are fire-and-forget
     ApiResponse.success(res, { orderId: order.orderId, status: order.status }, `Order status updated to ${status}`);
+
+    // Send SMS/WhatsApp notification (async, non-blocking)
+    try {
+      const { sendOrderNotification, orderStatusMessages } = require('../services/notificationService');
+      if (orderStatusMessages[status] && order.user?.phone) {
+        sendOrderNotification(order.user.phone, orderStatusMessages[status](order.orderId)).catch(() => {});
+      }
+    } catch { /* notification service unavailable */ }
+
+    // Send Web Push notification (async, non-blocking)
+    try {
+      const { sendOrderPush } = require('../services/pushService');
+      sendOrderPush(order.user, order.orderId, status).catch(() => {});
+    } catch { /* push service unavailable */ }
   } catch (err) {
     next(err);
   }

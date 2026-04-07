@@ -2,11 +2,14 @@
 
 const webpush = require('web-push');
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT || 'mailto:admin@meddrop.app',
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+// Only configure if keys are present — avoids crash on missing env vars
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || 'mailto:admin@meddrop.app',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
 
 const STATUS_MESSAGES = {
   confirmed:  { title: 'Order Confirmed ✅',   body: 'Your order #{id} has been confirmed!' },
