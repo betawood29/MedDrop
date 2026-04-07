@@ -21,6 +21,10 @@ const getProducts = async (req, res, next) => {
       } else {
         return ApiResponse.paginated(res, [], { page: 1, limit, total: 0, pages: 0 });
       }
+    } else {
+      // No specific category filter — restrict to products whose category is active
+      const activeCategories = await Category.find({ isActive: true }).select('_id').lean();
+      query.category = { $in: activeCategories.map((c) => c._id) };
     }
 
     // Filter by subcategory slug
