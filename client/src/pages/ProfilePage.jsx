@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Phone, Building, MapPin, ArrowLeft } from 'lucide-react';
+import { LogOut, User, Phone, Building, MapPin, ArrowLeft, FileText, Shield, PhoneCall, Lightbulb, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { completeProfile } from '../services/authService';
@@ -88,6 +88,22 @@ const ProfilePage = () => {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="profile-links-card">
+        <p className="profile-links-title">More</p>
+        {[
+          { icon: Lightbulb, label: 'Suggestions & Feedback', to: '/suggestions' },
+          { icon: PhoneCall,  label: 'Contact Us',            to: '/contact'     },
+          { icon: FileText,   label: 'Terms & Conditions',    to: '/terms'       },
+          { icon: Shield,     label: 'Privacy Policy',        to: '/privacy'     },
+        ].map(({ icon: Icon, label, to }) => (
+          <button key={to} className="profile-link-row" onClick={() => navigate(to)}>
+            <Icon size={17} />
+            <span>{label}</span>
+            <ChevronRight size={15} className="profile-link-chevron" />
+          </button>
+        ))}
       </div>
 
       <button className="btn-danger logout-btn" onClick={handleLogout}>

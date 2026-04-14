@@ -25,6 +25,10 @@ import PrintOrderDetailPage from './pages/PrintOrderDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import ProductPage from './pages/ProductPage';
 import SubCategoryPage from './pages/SubCategoryPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import ContactPage from './pages/ContactPage';
+import SuggestionsPage from './pages/SuggestionsPage';
 
 // Admin
 import AdminLayout from './pages/admin/AdminLayout';
@@ -95,6 +99,12 @@ const CustomerLayout = () => {
           } />
           <Route path="/profile" element={
             <ProtectedRoute><ProfilePage /></ProtectedRoute>
+          } />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/suggestions" element={
+            <ProtectedRoute><SuggestionsPage /></ProtectedRoute>
           } />
           <Route path="*" element={
             <div className="page-container"><div className="empty-state">
