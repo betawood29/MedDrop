@@ -273,7 +273,7 @@ const updateOrderStatus = async (req, res, next) => {
       throw ApiError.badRequest('Invalid status');
     }
 
-    const order = await Order.findById(req.params.id).populate('user', 'phone');
+    const order = await Order.findById(req.params.id).populate('user', 'phone pushSubscriptions');
     if (!order) throw ApiError.notFound('Order not found');
 
     order.status = status;

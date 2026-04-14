@@ -19,7 +19,9 @@ const STATUS_ICONS = {
 
 const PROMPT_KEY = 'push-prompt-dismissed';
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-const isInStandaloneMode = window.navigator.standalone === true;
+const isInStandaloneMode =
+  window.navigator.standalone === true ||
+  window.matchMedia('(display-mode: standalone)').matches;
 
 const OrderNotifications = () => {
   const { user } = useAuth();
@@ -28,17 +30,33 @@ const OrderNotifications = () => {
   const { supported, permission, subscribed, loading, enable } = usePushNotifications();
   const [showPrompt, setShowPrompt] = useState(false);
   const [showIOSHint, setShowIOSHint] = useState(false);
+  const [showAndroidInstall, setShowAndroidInstall] = useState(false);
+  const deferredPromptRef = useRef(null);
 
-  // Show push permission prompt once per session to logged-in users
+  // Capture Android/desktop "Add to Home Screen" browser event
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      deferredPromptRef.current = e;
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  // Show the right prompt once per session to logged-in users
   useEffect(() => {
     if (!user) return;
     if (sessionStorage.getItem(PROMPT_KEY)) return;
 
     const timer = setTimeout(() => {
       if (isIOS && !isInStandaloneMode) {
-        // iPhone in Safari — show "add to home screen" hint instead
+        // iOS in Safari — must install first to get push
         setShowIOSHint(true);
+      } else if (!isInStandaloneMode && deferredPromptRef.current) {
+        // Android/desktop — native install banner available
+        setShowAndroidInstall(true);
       } else if (supported && permission !== 'granted' && permission !== 'denied' && !subscribed) {
+        // Already installed (standalone) or browser that supports push directly
         setShowPrompt(true);
       }
     }, 3000);
@@ -52,18 +70,30 @@ const OrderNotifications = () => {
 
   const handleDismiss = () => {
     setShowPrompt(false);
+    setShowIOSHint(false);
+    setShowAndroidInstall(false);
     sessionStorage.setItem(PROMPT_KEY, '1');
+  };
+
+  const handleAndroidInstall = async () => {
+    const prompt = deferredPromptRef.current;
+    if (!prompt) return;
+    prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    deferredPromptRef.current = null;
+    setShowAndroidInstall(false);
+    if (outcome === 'accepted') sessionStorage.setItem(PROMPT_KEY, '1');
   };
 
   // Socket — real-time in-app toasts
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?._id) return;
 
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      socket.emit('join-user', user.id);
+      socket.emit('join-user', user._id);
     });
 
     socket.on('order-update', (data) => {
@@ -109,9 +139,9 @@ const OrderNotifications = () => {
     });
 
     return () => socket.disconnect();
-  }, [user?.id, navigate]);
+  }, [user?._id, navigate]);
 
-  if (!showPrompt && !showIOSHint) return null;
+  if (!showPrompt && !showIOSHint && !showAndroidInstall) return null;
 
   if (showIOSHint) {
     return (
@@ -123,6 +153,22 @@ const OrderNotifications = () => {
         </div>
         <div className="push-prompt-actions">
           <button className="push-prompt-dismiss" onClick={handleDismiss}>Got it</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showAndroidInstall) {
+    return (
+      <div className="push-prompt">
+        <div className="push-prompt-icon">📲</div>
+        <div className="push-prompt-text">
+          <strong>Add MedDrop to Home Screen</strong>
+          <span>Install for faster access and order notifications</span>
+        </div>
+        <div className="push-prompt-actions">
+          <button className="btn-primary push-prompt-btn" onClick={handleAndroidInstall}>Install</button>
+          <button className="push-prompt-dismiss" onClick={handleDismiss}>Not now</button>
         </div>
       </div>
     );
