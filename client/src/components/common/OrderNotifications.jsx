@@ -19,6 +19,8 @@ const STATUS_ICONS = {
 
 const PROMPT_KEY = 'push-prompt-dismissed';
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isAndroid = /android/i.test(navigator.userAgent);
+const isMobileDevice = isIOS || isAndroid;
 const isInStandaloneMode =
   window.navigator.standalone === true ||
   window.matchMedia('(display-mode: standalone)').matches;
@@ -52,8 +54,8 @@ const OrderNotifications = () => {
       if (isIOS && !isInStandaloneMode) {
         // iOS in Safari — must install first to get push
         setShowIOSHint(true);
-      } else if (!isInStandaloneMode && deferredPromptRef.current) {
-        // Android/desktop — native install banner available
+      } else if (isMobileDevice && !isInStandaloneMode && deferredPromptRef.current) {
+        // Android — native install banner available (desktop skips this, goes to push prompt directly)
         setShowAndroidInstall(true);
       } else if (supported && permission !== 'granted' && permission !== 'denied' && !subscribed) {
         // Already installed (standalone) or browser that supports push directly
@@ -136,6 +138,45 @@ const OrderNotifications = () => {
           },
         }
       );
+
+      // After delivery — nudge for a review (delay slightly so order toast clears first)
+      if (data.status === 'delivered') {
+        setTimeout(() => {
+          toast(
+            (t) => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>🌟 How was your experience?</div>
+                <div style={{ fontSize: '0.82rem', color: '#666' }}>
+                  Tell us how Order #{data.orderId} went — it takes 10 seconds!
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => { toast.dismiss(t.id); navigate(`/orders/${data.orderId}`); }}
+                    style={{
+                      flex: 1, padding: '6px 0', borderRadius: 8,
+                      background: '#7c3aed', color: 'white',
+                      border: 'none', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer',
+                    }}
+                  >
+                    Rate Now
+                  </button>
+                  <button
+                    onClick={() => toast.dismiss(t.id)}
+                    style={{
+                      padding: '6px 12px', borderRadius: 8,
+                      background: '#f1f5f9', color: '#475569',
+                      border: 'none', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer',
+                    }}
+                  >
+                    Later
+                  </button>
+                </div>
+              </div>
+            ),
+            { duration: 10000, style: { padding: '14px 16px', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', border: '2px solid #7c3aed', maxWidth: '360px' } }
+          );
+        }, 6000);
+      }
     });
 
     return () => socket.disconnect();

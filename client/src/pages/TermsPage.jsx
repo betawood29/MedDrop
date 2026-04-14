@@ -77,7 +77,7 @@ const TermsPage = () => {
 
         <div className="static-section">
           <h3>11. Contact</h3>
-          <p>Questions about these terms? Reach us at <strong>support@meddrop.app</strong> or visit the <span className="static-link" onClick={() => navigate('/contact')}>Contact Us</span> page.</p>
+          <p>Questions about these terms? Reach us at <strong>meddrop60@gmail.com</strong> or visit the <span className="static-link" onClick={() => navigate('/contact')}>Contact Us</span> page.</p>
         </div>
       </div>
     </div>

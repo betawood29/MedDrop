@@ -2,13 +2,27 @@ const Feedback = require('../models/Feedback');
 const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
 
-// POST /api/feedback — submit a suggestion / complaint / feedback
+// POST /api/feedback — submit a suggestion / complaint / delivery review
 const submitFeedback = async (req, res, next) => {
   try {
-    const { type, message, name, phone } = req.body;
+    const { type, message, name, phone, orderId, rating } = req.body;
 
-    if (!message || message.trim().length < 5) {
+    const isReview = type === 'delivery_review';
+
+    // Reviews require a rating; all other types require a message
+    if (isReview && (!rating || rating < 1 || rating > 5)) {
+      throw ApiError.badRequest('A rating between 1 and 5 is required for delivery reviews');
+    }
+    if (!isReview && (!message || message.trim().length < 5)) {
       throw ApiError.badRequest('Message must be at least 5 characters');
+    }
+
+    // Prevent duplicate delivery reviews for the same order by the same user
+    if (isReview && orderId && req.user?._id) {
+      const existing = await Feedback.findOne({ user: req.user._id, orderId, type: 'delivery_review' });
+      if (existing) {
+        return ApiResponse.success(res, { id: existing._id }, 'Review already submitted');
+      }
     }
 
     const feedback = await Feedback.create({
@@ -16,7 +30,9 @@ const submitFeedback = async (req, res, next) => {
       name: name || req.user?.name || null,
       phone: phone || req.user?.phone || null,
       type: type || 'general',
-      message: message.trim(),
+      orderId: orderId || null,
+      rating: rating || null,
+      message: message ? message.trim() : null,
     });
 
     ApiResponse.success(res, { id: feedback._id }, 'Thank you for your feedback!', 201);

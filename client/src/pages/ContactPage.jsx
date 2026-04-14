@@ -5,14 +5,14 @@ const CONTACT_ITEMS = [
   {
     icon: Phone,
     label: 'WhatsApp / Call',
-    value: '+91 98765 43210',
-    href: 'https://wa.me/919876543210',
+    value: '+91 9914866244',
+    href: 'https://wa.me/919914866244',
   },
   {
     icon: Mail,
     label: 'Email',
-    value: 'support@meddrop.app',
-    href: 'mailto:support@meddrop.app',
+    value: 'meddrop60@gmail.com',
+    href: 'mailto:meddrop60@gmail.com',
   },
   {
     icon: MapPin,
