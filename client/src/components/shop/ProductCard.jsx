@@ -41,7 +41,7 @@ const ProductCard = ({ product }) => {
       <div className="product-info">
         <div className="product-delivery-time">{getDeliveryInfo().label}</div>
         <h3 className="product-name" onClick={goToProduct} style={{ cursor: 'pointer' }}>{product.name}</h3>
-        {product.description && <p className="product-desc">{product.description}</p>}
+        <p className="product-desc">{product.description}</p>
 
         <div className="product-bottom">
           <div className="product-pricing">
@@ -63,11 +63,11 @@ const ProductCard = ({ product }) => {
                 <button onClick={() => updateQty(product._id, qty + 1)} aria-label="Increase" disabled={atMax} className={atMax ? 'qty-btn-disabled' : ''}><Plus size={14} /></button>
               </div>
             )}
-            {product.stockQty > 0 && product.stockQty <= 5 && (
-              <span className="low-stock-text">Only {product.stockQty} left</span>
-            )}
           </div>
         </div>
+         {product.stockQty > 0 && product.stockQty <= 5 && (
+              <span className="low-stock-text">Only {product.stockQty} left</span>
+            )}
       </div>
     </div>
   );
