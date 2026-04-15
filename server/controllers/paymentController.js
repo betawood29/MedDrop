@@ -21,30 +21,51 @@ const FREE_DELIVERY_MIN = 199;
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-// Find the most recent valid prescription for the given user
+// Find the most recent valid prescription for the given user.
+// Uses $ne / null comparisons instead of $exists:false — more robust when Mongoose
+// stores unset ObjectId fields as null rather than omitting them entirely.
 const findValidPrescription = async (userId) => {
   const now = new Date();
   return Prescription.findOne({
     user: userId,
     status: { $in: ['approved', 'partially_approved'] },
-    $or: [
-      // Reusable: not expired and usage not exhausted
-      { isReusable: true,  expiresAt: { $gt: now }, $expr: { $lt: ['$usageCount', '$maxUsage'] } },
-      // Single-use: not yet linked to any order and no legacy delivery request
-      { isReusable: false, order: { $exists: false }, 'deliveryRequest.hostel': { $exists: false } },
+    $and: [
+      // Not expired  — null/missing expiresAt means no expiry was set (old docs) → still valid
+      { $or: [{ expiresAt: { $gt: now } }, { expiresAt: null }] },
+      {
+        $or: [
+          // Reusable path: has remaining uses
+          {
+            isReusable: true,
+            $expr: { $lt: ['$usageCount', '$maxUsage'] },
+          },
+          // Single-use path: no linked order, no legacy delivery request
+          // null matches both explicitly-null AND missing fields
+          {
+            isReusable: { $ne: true },        // false | null | missing
+            order: null,                       // not linked to any order yet
+            'deliveryRequest.hostel': null,    // no legacy delivery request
+          },
+        ],
+      },
     ],
   }).sort({ createdAt: -1 });
 };
 
-// Describe why the user has no valid prescription (for friendly error messages)
+// Describe why the user has no valid prescription — returns { message, rxStatus }
 const getPrescriptionBlockReason = async (userId) => {
   const latest = await Prescription.findOne({ user: userId }).sort({ createdAt: -1 }).lean();
-  if (!latest) return 'No prescription uploaded. Please upload one on the Prescription page.';
-  if (latest.status === 'pending') return 'Your prescription is still under review. Please wait for approval before checking out.';
-  if (latest.status === 'clarification_required') return 'Our pharmacist needs clarification on your prescription. Please check the Prescription page and respond.';
-  if (latest.status === 'rejected') return `Your prescription was rejected. Reason: ${latest.adminNote || 'Please upload a new one.'}`;
-  if (latest.expiresAt && latest.expiresAt < new Date()) return 'Your prescription has expired (90-day validity). Please upload a fresh prescription.';
-  return 'A valid, approved prescription is required to order prescription medicines.';
+  if (!latest)
+    return { message: 'No prescription uploaded. Please upload one to order prescription medicines.', rxStatus: 'none' };
+  if (latest.status === 'pending')
+    return { message: 'Your prescription is still under review. You can proceed once our pharmacist approves it.', rxStatus: 'pending' };
+  if (latest.status === 'clarification_required')
+    return { message: 'Our pharmacist needs clarification on your prescription. Please check the Prescription page and respond.', rxStatus: 'clarification_required' };
+  if (latest.status === 'rejected')
+    return { message: `Your prescription was rejected. ${latest.adminNote ? `Reason: ${latest.adminNote}. ` : ''}Please upload a new one.`, rxStatus: 'rejected' };
+  if (latest.expiresAt && latest.expiresAt < new Date())
+    return { message: 'Your prescription has expired (90-day validity). Please upload a fresh prescription.', rxStatus: 'none' };
+  return { message: 'No valid prescription found. Please upload an approved prescription to order medicines.', rxStatus: 'none' };
 };
 
 // ─── POST /api/payments/initiate ────────────────────────────────────────────
@@ -73,8 +94,8 @@ const initiatePayment = async (req, res, next) => {
     if (hasRxItems) {
       const validRx = await findValidPrescription(req.user._id);
       if (!validRx) {
-        const reason = await getPrescriptionBlockReason(req.user._id);
-        throw ApiError.badRequest(reason);
+        const { message, rxStatus } = await getPrescriptionBlockReason(req.user._id);
+        throw ApiError.prescriptionRequired(message, rxStatus);
       }
     }
 
@@ -156,8 +177,8 @@ const verifyAndCreateOrder = async (req, res, next) => {
     if (hasRxItems) {
       validRx = await findValidPrescription(req.user._id);
       if (!validRx) {
-        const reason = await getPrescriptionBlockReason(req.user._id);
-        throw ApiError.badRequest(reason);
+        const { message, rxStatus } = await getPrescriptionBlockReason(req.user._id);
+        throw ApiError.prescriptionRequired(message, rxStatus);
       }
 
       // Validate cart Rx items against the prescription's approved medicines list (if attached)

@@ -79,17 +79,19 @@ const CheckoutPage = () => {
 
   useEffect(() => {
     if (!hasRxItems || !user) { setRxStatus(null); return; }
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const now = new Date();
     getMyPrescriptions()
       .then((res) => {
         const prescriptions = res.data.data || [];
-        const latestValid = prescriptions.find(
-          (p) =>
-            ['approved', 'partially_approved'].includes(p.status) &&
-            !p.order &&
-            !p.deliveryRequest?.hostel &&
-            new Date(p.createdAt).getTime() > thirtyDaysAgo
-        );
+        const latestValid = prescriptions.find((p) => {
+          if (!['approved', 'partially_approved'].includes(p.status)) return false;
+          if (p.isReusable) {
+            const notExpired  = !p.expiresAt || new Date(p.expiresAt) > now;
+            const notExhausted = !p.maxUsage || (p.usageCount || 0) < p.maxUsage;
+            return notExpired && notExhausted;
+          }
+          return !p.order && !p.deliveryRequest?.hostel;
+        });
         if (latestValid) { setRxStatus(latestValid.status); return; }
         const latest = prescriptions[0];
         if (!latest) { setRxStatus('none'); return; }
@@ -106,7 +108,9 @@ const CheckoutPage = () => {
     if (!hasAnything) navigate('/cart');
   }, [hasAnything, navigate]);
 
-  const checkoutBlocked = hasRxItems && user && RX_BLOCKING_STATUSES.has(rxStatus ?? 'none');
+  // rxLoading: prescription check is in-flight — don't block yet, show spinner on submit button
+  const rxLoading      = hasRxItems && !!user && rxStatus === null;
+  const checkoutBlocked = hasRxItems && !!user && rxStatus !== null && RX_BLOCKING_STATUSES.has(rxStatus);
   const banner = rxStatus ? RX_BANNER[rxStatus] : null;
   const BannerIcon = banner?.icon;
 
@@ -200,9 +204,43 @@ const CheckoutPage = () => {
       }
       navigate(shopOrderId ? `/orders/${shopOrderId}` : '/orders');
     } catch (err) {
-      const msg = err.message || err.response?.data?.message || 'Something went wrong';
+      const data    = err.response?.data;
+      const msg     = data?.message || err.message || 'Something went wrong';
+      const errCode = data?.errorCode;
+
       if (msg === 'Payment cancelled') {
         toast.error('Payment cancelled. Try again when ready.');
+      } else if (errCode === 'PRESCRIPTION_REQUIRED') {
+        // Update the banner to reflect the server's knowledge of the current Rx status
+        const serverRxStatus = data?.rxStatus || 'none';
+        setRxStatus(serverRxStatus);
+        // Show a persistent, actionable toast
+        toast(
+          (t) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{msg}</span>
+              <button
+                style={{
+                  background: '#7c3aed', color: 'white', border: 'none',
+                  borderRadius: 8, padding: '6px 12px', fontSize: '0.8rem',
+                  fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start',
+                }}
+                onClick={() => { toast.dismiss(t.id); navigate('/prescription'); }}
+              >
+                Go to Prescription →
+              </button>
+            </div>
+          ),
+          {
+            duration: 10000,
+            style: {
+              padding: '14px 16px', borderRadius: 12,
+              border: '2px solid #7c3aed', maxWidth: 360,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+            },
+            icon: '💊',
+          }
+        );
       } else {
         toast.error(msg);
       }
@@ -264,6 +302,7 @@ const CheckoutPage = () => {
             onSubmit={handlePlaceOrder}
             loading={loading}
             disabled={checkoutBlocked}
+            rxLoading={rxLoading}
           />
         </div>
         <div className="checkout-right">

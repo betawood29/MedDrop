@@ -38,7 +38,7 @@ const RX_NOTICE = {
     iconClass: 'cart-rx-icon-pending',
     className: 'rx-status-pending',
     title: 'Prescription Under Review',
-    body: 'Checkout is blocked until our pharmacist approves your prescription.',
+    body: 'Order on hold until our pharmacist approves your prescription.',
     showUpload: false,
   },
   clarification_required: {
@@ -80,19 +80,24 @@ const CartPage = () => {
 
   useEffect(() => {
     if (!hasRxItems || !user) { setRxStatus(null); return; }
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const now = new Date();
     getMyPrescriptions()
       .then((res) => {
         const prescriptions = res.data.data || [];
-        const latestValid = prescriptions.find(
-          (p) =>
-            ['approved', 'partially_approved'].includes(p.status) &&
-            !p.order &&
-            !p.deliveryRequest?.hostel &&
-            new Date(p.createdAt).getTime() > thirtyDaysAgo
-        );
+        // Match backend findValidPrescription logic:
+        // reusable → not expired + usage not exhausted
+        // single-use → no order + no delivery request
+        const latestValid = prescriptions.find((p) => {
+          if (!['approved', 'partially_approved'].includes(p.status)) return false;
+          if (p.isReusable) {
+            const notExpired = !p.expiresAt || new Date(p.expiresAt) > now;
+            const notExhausted = !p.maxUsage || (p.usageCount || 0) < p.maxUsage;
+            return notExpired && notExhausted;
+          }
+          return !p.order && !p.deliveryRequest?.hostel;
+        });
         if (latestValid) { setRxStatus(latestValid.status); return; }
-        // No valid one — return the latest status for messaging
+        // No valid one — show the latest status for messaging
         const latest = prescriptions[0];
         if (!latest) { setRxStatus('none'); return; }
         setRxStatus(
@@ -229,8 +234,8 @@ const CartPage = () => {
               {rxStatus === 'pending'
                 ? 'Waiting for prescription approval…'
                 : rxStatus === 'clarification_required'
-                ? 'Respond to clarification to unlock checkout'
-                : 'Upload an approved prescription to unlock checkout'}
+                ? 'Respond to clarification to checkout'
+                : 'Upload an approved prescription to checkout'}
             </p>
           )}
         </div>
