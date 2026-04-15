@@ -1,6 +1,7 @@
 // Web Push service — sends push notifications to subscribed devices
 
 const webpush = require('web-push');
+const User = require('../models/User');
 
 // Only configure if keys are present — avoids crash on missing env vars
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -36,22 +37,39 @@ const sendOrderPush = async (user, orderId, status) => {
   });
 
   const results = await Promise.allSettled(
-    user.pushSubscriptions.map((sub) => webpush.sendNotification(sub, payload))
+    user.pushSubscriptions.map((sub) =>
+      webpush.sendNotification(
+        // Pass a plain object — webpush doesn't understand Mongoose subdocuments
+        { endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } },
+        payload
+      )
+    )
   );
 
-  // Remove expired/invalid subscriptions (410 Gone)
-  const expiredEndpoints = [];
+  // Collect endpoints to remove: 410 Gone (expired) and 401/403 (invalid VAPID key)
+  const staleEndpoints = [];
   results.forEach((result, i) => {
-    if (result.status === 'rejected' && result.reason?.statusCode === 410) {
-      expiredEndpoints.push(user.pushSubscriptions[i].endpoint);
+    if (result.status === 'rejected') {
+      const code = result.reason?.statusCode;
+      if (code === 410) {
+        // Subscription expired — remove it
+        staleEndpoints.push(user.pushSubscriptions[i].endpoint);
+      } else if (code === 401 || code === 403) {
+        // VAPID key mismatch — subscription was created with a different key
+        console.error(`[Push] 401/403 for ${user.pushSubscriptions[i].endpoint} — subscription may be stale (VAPID key changed). Removing.`);
+        staleEndpoints.push(user.pushSubscriptions[i].endpoint);
+      } else {
+        console.error(`[Push] Failed to send to ${user.pushSubscriptions[i].endpoint}:`, result.reason?.message || result.reason);
+      }
     }
   });
 
-  if (expiredEndpoints.length) {
-    user.pushSubscriptions = user.pushSubscriptions.filter(
-      (s) => !expiredEndpoints.includes(s.endpoint)
-    );
-    await user.save();
+  // Use atomic update instead of save() to avoid corrupting partial document
+  if (staleEndpoints.length) {
+    await User.updateOne(
+      { _id: user._id },
+      { $pull: { pushSubscriptions: { endpoint: { $in: staleEndpoints } } } }
+    ).catch((err) => console.error('[Push] Failed to remove stale subscriptions:', err));
   }
 };
 

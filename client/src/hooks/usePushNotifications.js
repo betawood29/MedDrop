@@ -33,16 +33,33 @@ export const usePushNotifications = () => {
         await navigator.serviceWorker.ready;
 
         let subscription = await registration.pushManager.getSubscription();
+        const currentKeyBytes = urlBase64ToUint8Array(vapidKey);
 
-        // If no subscription exists, or it was created with a different key — resubscribe
+        // If subscription exists, check it was created with the current VAPID key.
+        // If the key changed (e.g. after d190221 "vapid keys updated"), the old
+        // subscription will fail with 401 on every push — force re-subscribe.
+        if (subscription) {
+          const existingKeyBuffer = subscription.options?.applicationServerKey;
+          if (existingKeyBuffer) {
+            const existingKeyBytes = new Uint8Array(existingKeyBuffer);
+            const keysMatch =
+              existingKeyBytes.length === currentKeyBytes.length &&
+              existingKeyBytes.every((b, i) => b === currentKeyBytes[i]);
+            if (!keysMatch) {
+              await subscription.unsubscribe();
+              subscription = null;
+            }
+          }
+        }
+
         if (!subscription) {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidKey),
+            applicationServerKey: currentKeyBytes,
           });
           await saveSubscription(subscription.toJSON());
         } else {
-          // Save to server anyway (in case it was never persisted due to missing VAPID)
+          // Persist to server in case it was never saved (e.g. prior save failed)
           await saveSubscription(subscription.toJSON()).catch(() => {});
         }
 
