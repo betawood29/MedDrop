@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ShoppingBag, Package, Upload, FolderTree, Image, LogOut } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Package, Upload, FolderTree, Image, LogOut, MessageSquare } from 'lucide-react';
 import io from 'socket.io-client';
 import { SOCKET_URL } from '../../utils/constants';
 
@@ -68,6 +68,9 @@ const AdminSidebar = ({ onLogout }) => {
         </NavLink>
         <NavLink to="/admin/banner" className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
           <Image size={18} /><span>Banner</span>
+        </NavLink>
+        <NavLink to="/admin/feedback" className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
+          <MessageSquare size={18} /><span>Feedback</span>
         </NavLink>
       </nav>
       <button className="admin-nav-item logout" onClick={onLogout}>

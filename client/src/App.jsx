@@ -38,6 +38,7 @@ import AdminProducts from './pages/admin/AdminProducts';
 import AdminUpload from './pages/admin/AdminUpload';
 import AdminCategories from './pages/admin/AdminCategories';
 import AdminBanner from './pages/admin/AdminBanner';
+import AdminFeedback from './pages/admin/AdminFeedback';
 
 const App = () => {
   return (
@@ -57,6 +58,7 @@ const App = () => {
               <Route path="upload" element={<AdminUpload />} />
               <Route path="categories" element={<AdminCategories />} />
               <Route path="banner" element={<AdminBanner />} />
+              <Route path="feedback" element={<AdminFeedback />} />
             </Route>
 
             {/* Customer routes */}

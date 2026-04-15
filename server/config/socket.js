@@ -5,14 +5,19 @@ const { Server } = require('socket.io');
 
 let io = null;
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: [
-        'http://localhost:5173',
-        'http://localhost:5174',
-        process.env.CLIENT_URL,
-      ].filter(Boolean),
+      // In dev, accept any localhost port (Vite uses 5173, 5174, 5175… dynamically).
+      // In production, only the CLIENT_URL env var is allowed.
+      origin: isDev
+        ? (origin, cb) => {
+            if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true);
+            cb(new Error('Not allowed by CORS'));
+          }
+        : [process.env.CLIENT_URL].filter(Boolean),
       methods: ['GET', 'POST'],
     },
   });
