@@ -29,6 +29,7 @@ import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import ContactPage from './pages/ContactPage';
 import SuggestionsPage from './pages/SuggestionsPage';
+import PrescriptionPage from './pages/PrescriptionPage';
 
 // Admin
 import AdminLayout from './pages/admin/AdminLayout';
@@ -38,6 +39,7 @@ import AdminProducts from './pages/admin/AdminProducts';
 import AdminUpload from './pages/admin/AdminUpload';
 import AdminCategories from './pages/admin/AdminCategories';
 import AdminBanner from './pages/admin/AdminBanner';
+import AdminPrescriptions from './pages/admin/AdminPrescriptions';
 
 const App = () => {
   return (
@@ -57,6 +59,7 @@ const App = () => {
               <Route path="upload" element={<AdminUpload />} />
               <Route path="categories" element={<AdminCategories />} />
               <Route path="banner" element={<AdminBanner />} />
+              <Route path="prescriptions" element={<AdminPrescriptions />} />
             </Route>
 
             {/* Customer routes */}
@@ -105,6 +108,9 @@ const CustomerLayout = () => {
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/suggestions" element={
             <ProtectedRoute><SuggestionsPage /></ProtectedRoute>
+          } />
+          <Route path="/prescription" element={
+            <ProtectedRoute><PrescriptionPage /></ProtectedRoute>
           } />
           <Route path="*" element={
             <div className="page-container"><div className="empty-state">

@@ -1,0 +1,20 @@
+// Prescription routes — user upload & listing (protected by user auth)
+
+const router = require('express').Router();
+const protect = require('../middleware/auth');
+const { prescriptionUpload } = require('../middleware/upload');
+const {
+  uploadPrescription,
+  getMyPrescriptions,
+  getPrescription,
+  deletePrescription,
+} = require('../controllers/prescriptionController');
+
+router.use(protect);
+
+router.post('/', prescriptionUpload.single('prescription'), uploadPrescription);
+router.get('/', getMyPrescriptions);
+router.get('/:id', getPrescription);
+router.delete('/:id', deletePrescription);
+
+module.exports = router;

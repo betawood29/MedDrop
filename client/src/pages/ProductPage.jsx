@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Minus, Clock, ShieldCheck, Tag, Package, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, Clock, ShieldCheck, Tag, Package, ChevronRight, Upload } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { getProduct, getProducts } from '../services/productService';
 import { formatPrice } from '../utils/formatters';
@@ -167,6 +167,25 @@ const ProductPage = () => {
             </div>
           )}
         </div>
+
+        {/* Prescription required banner */}
+        {product.requiresPrescription && (
+          <div className="pdp-rx-banner">
+            <div className="pdp-rx-banner-info">
+              <ShieldCheck size={20} className="pdp-rx-banner-icon" />
+              <div>
+                <p className="pdp-rx-banner-title">Prescription Required</p>
+                <p className="pdp-rx-banner-sub">Upload a valid doctor's prescription to order this medicine</p>
+              </div>
+            </div>
+            <button
+              className="pdp-rx-upload-btn"
+              onClick={() => navigate('/prescription')}
+            >
+              <Upload size={15} /> Upload Rx
+            </button>
+          </div>
+        )}
 
         {/* Why MedDrop section */}
         <div className="pdp-why-section">

@@ -28,6 +28,7 @@ const {
   getAdminPrintOrders,
   updatePrintOrderStatus,
 } = require('../controllers/adminController');
+const { getAdminPrescriptions, reviewPrescription } = require('../controllers/prescriptionController');
 const { uploadExcel, downloadTemplate } = require('../controllers/uploadController');
 const { getBanners, createBanner, updateBanner, deleteBanner, uploadBannerImage } = require('../controllers/bannerController');
 
@@ -86,5 +87,9 @@ router.post('/banner/upload-image', imageUpload.single('image'), uploadBannerIma
 // Print order management
 router.get('/print-orders', getAdminPrintOrders);
 router.patch('/print-orders/:id', updatePrintOrderStatus);
+
+// Prescription management
+router.get('/prescriptions', getAdminPrescriptions);
+router.patch('/prescriptions/:id', reviewPrescription);
 
 module.exports = router;

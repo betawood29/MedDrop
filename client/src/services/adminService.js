@@ -103,3 +103,10 @@ export const getAdminPrintOrders = (params) =>
 
 export const updatePrintOrderStatus = (id, status) =>
   api.patch(`/admin/print-orders/${id}`, { status }, adminApi());
+
+// Prescription management
+export const getAdminPrescriptions = (params) =>
+  api.get('/admin/prescriptions', { ...adminApi(), params });
+
+export const reviewPrescription = (id, status, adminNote) =>
+  api.patch(`/admin/prescriptions/${id}`, { status, adminNote }, adminApi());

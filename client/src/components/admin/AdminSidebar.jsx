@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ShoppingBag, Package, Upload, FolderTree, Image, LogOut } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Package, Upload, FolderTree, Image, LogOut, FileText } from 'lucide-react';
 import io from 'socket.io-client';
 import { SOCKET_URL } from '../../utils/constants';
 
 const AdminSidebar = ({ onLogout }) => {
   const [shopCount, setShopCount] = useState(0);
   const [printCount, setPrintCount] = useState(0);
+  const [rxCount, setRxCount] = useState(0);
   const socketRef = useRef(null);
   const location = useLocation();
 
@@ -23,14 +24,18 @@ const AdminSidebar = ({ onLogout }) => {
         setShopCount((c) => c + 1);
       }
     });
+    socket.on('new-prescription', () => setRxCount((c) => c + 1));
     return () => socket.disconnect();
   }, []);
 
-  // Clear badges when visiting orders page
+  // Clear badges when visiting relevant pages
   useEffect(() => {
     if (location.pathname.startsWith('/admin/orders')) {
       setShopCount(0);
       setPrintCount(0);
+    }
+    if (location.pathname.startsWith('/admin/prescriptions')) {
+      setRxCount(0);
     }
   }, [location.pathname]);
 
@@ -68,6 +73,10 @@ const AdminSidebar = ({ onLogout }) => {
         </NavLink>
         <NavLink to="/admin/banner" className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
           <Image size={18} /><span>Banner</span>
+        </NavLink>
+        <NavLink to="/admin/prescriptions" className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
+          <FileText size={18} /><span>Prescriptions</span>
+          {rxCount > 0 && <span className="admin-badge shop">{rxCount}</span>}
         </NavLink>
       </nav>
       <button className="admin-nav-item logout" onClick={onLogout}>

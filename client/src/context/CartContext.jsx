@@ -232,6 +232,7 @@ export const CartProvider = ({ children }) => {
         image: product.image,
         quantity: Math.min(qty, maxQty),
         stockQty: product.stockQty || 0,
+        requiresPrescription: product.requiresPrescription || false,
       }];
     });
   }, []);

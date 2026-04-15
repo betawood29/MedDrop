@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CartSummary from '../components/cart/CartSummary';
 import DeliveryForm from '../components/cart/DeliveryForm';
@@ -18,6 +18,9 @@ const CheckoutPage = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Check if any cart item requires a prescription
+  const hasRxItems = items.some((i) => i.requiresPrescription);
 
   const openRazorpay = (razorpayOrderId, amount, keyId) => {
     return new Promise((resolve, reject) => {
@@ -138,6 +141,20 @@ const CheckoutPage = () => {
         </button>
         <h2 className="page-title">Checkout</h2>
       </div>
+
+      {/* Prescription reminder for Rx items */}
+      {hasRxItems && (
+        <div className="checkout-rx-banner">
+          <ShieldCheck size={18} className="checkout-rx-icon" />
+          <div className="checkout-rx-text">
+            <strong>Prescription Required</strong>
+            <p>Your cart contains prescription medicines. Please upload a valid prescription before placing the order — it will be verified before delivery.</p>
+          </div>
+          <button className="checkout-rx-btn" onClick={() => navigate('/prescription')}>
+            <Upload size={14} /> Upload Rx
+          </button>
+        </div>
+      )}
 
       <div className="checkout-layout">
         <div className="checkout-left">

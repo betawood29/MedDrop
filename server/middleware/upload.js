@@ -71,4 +71,20 @@ const printUpload = multer({
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB max per file
 });
 
-module.exports = { excelUpload, imageUpload, printUpload };
+// Prescription uploads — images (JPG/PNG) and PDFs, stored in memory for Cloudinary
+const prescriptionUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.pdf'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new ApiError('Only JPG, PNG, or PDF files are allowed for prescriptions', 400), false);
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+});
+
+module.exports = { excelUpload, imageUpload, printUpload, prescriptionUpload };

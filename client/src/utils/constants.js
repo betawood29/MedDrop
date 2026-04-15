@@ -41,6 +41,12 @@ export const getDeliveryInfo = () => {
   return { label: `Tomorrow, ${DELIVERY_WINDOW}`, isToday: false };
 };
 
+export const PRESCRIPTION_STATUSES = {
+  pending: { label: 'Under Review', color: '#f59e0b', bg: '#fef3c7' },
+  approved: { label: 'Approved', color: '#22c55e', bg: '#dcfce7' },
+  rejected: { label: 'Rejected', color: '#ef4444', bg: '#fee2e2' },
+};
+
 export const HOSTEL_OPTIONS = [
   'Hostel 1', 'Hostel 2', 'Hostel 3', 'Hostel 4', 'Hostel 5',
   'Hostel 6', 'Hostel 7', 'Hostel 8', 'Hostel 9', 'Hostel 10',
