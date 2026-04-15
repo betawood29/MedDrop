@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
-  uploadPrescription, getMyPrescriptions, deletePrescription,
+  uploadPrescription, reuploadPrescription, getMyPrescriptions, deletePrescription,
 } from '../services/prescriptionService';
 import { useCart } from '../hooks/useCart';
 
@@ -44,15 +44,19 @@ const PrescriptionPage = () => {
   const { addItem }  = useCart();
   const fileInputRef = useRef(null);
 
-  const [prescriptions, setPrescriptions] = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [uploading,     setUploading]     = useState(false);
-  const [selectedFile,  setSelectedFile]  = useState(null);
-  const [preview,       setPreview]       = useState(null);
-  const [note,          setNote]          = useState('');
-  const [dragOver,      setDragOver]      = useState(false);
-  const [showGuide,     setShowGuide]     = useState(false);
-  const [viewingRx,     setViewingRx]     = useState(null);
+  const uploadCardRef = useRef(null);
+
+  const [prescriptions,   setPrescriptions]   = useState([]);
+  const [loading,         setLoading]         = useState(true);
+  const [uploading,       setUploading]       = useState(false);
+  const [selectedFile,    setSelectedFile]    = useState(null);
+  const [preview,         setPreview]         = useState(null);
+  const [note,            setNote]            = useState('');
+  const [dragOver,        setDragOver]        = useState(false);
+  const [showGuide,       setShowGuide]       = useState(false);
+  const [viewingRx,       setViewingRx]       = useState(null);
+  // When set, upload replaces this prescription instead of creating a new one
+  const [reuploadTarget,  setReuploadTarget]  = useState(null); // { id, prescriptionId, reason }
 
   const fetchPrescriptions = useCallback(async () => {
     try {
@@ -91,13 +95,25 @@ const PrescriptionPage = () => {
       const fd = new FormData();
       fd.append('prescription', selectedFile);
       if (note.trim()) fd.append('note', note.trim());
-      await uploadPrescription(fd);
-      toast.success('Prescription uploaded! Our pharmacist will review it shortly.');
+      if (reuploadTarget) {
+        await reuploadPrescription(reuploadTarget.id, fd);
+        toast.success('Prescription updated! Our pharmacist will review it shortly.');
+        setReuploadTarget(null);
+      } else {
+        await uploadPrescription(fd);
+        toast.success('Prescription uploaded! Our pharmacist will review it shortly.');
+      }
       clearSelected();
       fetchPrescriptions();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Upload failed. Please try again.');
     } finally { setUploading(false); }
+  };
+
+  const startReupload = (rx) => {
+    setReuploadTarget({ id: rx._id, prescriptionId: rx.prescriptionId, reason: rx.status });
+    clearSelected();
+    uploadCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleDelete = async (id) => {
@@ -158,7 +174,26 @@ const PrescriptionPage = () => {
         </div>
 
         {/* ── Upload card ── */}
-        <div className="rx-upload-card">
+        <div className="rx-upload-card" ref={uploadCardRef}>
+          {/* Re-upload context banner */}
+          {reuploadTarget && (
+            <div className="rx-reupload-banner">
+              <RefreshCw size={14} />
+              <span>
+                Updating <strong>{reuploadTarget.prescriptionId}</strong> —
+                {reuploadTarget.reason === 'clarification_required'
+                  ? ' upload a clearer photo to address the pharmacist\'s request'
+                  : ' upload a new prescription to replace the rejected one'}
+              </span>
+              <button
+                className="rx-reupload-cancel"
+                onClick={() => { setReuploadTarget(null); clearSelected(); }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
           <div
             className={`rx-drop-zone ${dragOver ? 'drag-over' : ''} ${selectedFile ? 'has-file' : ''}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -329,6 +364,19 @@ const PrescriptionPage = () => {
                           </div>
                         )}
 
+                        {/* Clarification → quick consult shortcuts */}
+                        {rx.status === 'clarification_required' && (
+                          <div className="rx-clarify-actions">
+                            <span className="rx-clarify-label">Need help clarifying?</span>
+                            <a href="tel:+919914866244" className="rx-clarify-btn call">
+                              <PhoneCall size={13} /> Call Pharmacist
+                            </a>
+                            <button className="rx-clarify-btn msg" onClick={() => navigate('/suggestions')}>
+                              <MessageSquare size={13} /> Send Message
+                            </button>
+                          </div>
+                        )}
+
                         {/* Rejection reason */}
                         {rx.status === 'rejected' && rx.adminNote && (
                           <div className="rx-reject-reason">
@@ -388,25 +436,25 @@ const PrescriptionPage = () => {
                           </button>
                         )}
 
-                        {/* Clarification → go to re-upload or message */}
+                        {/* Clarification → re-upload same prescription */}
                         {rx.status === 'clarification_required' && (
                           <button
                             className="rx-delivery-btn"
                             style={{ background: '#7c3aed' }}
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={() => startReupload(rx)}
                           >
                             <Upload size={13} /> Re-upload
                           </button>
                         )}
 
-                        {/* Rejected → re-upload */}
+                        {/* Rejected → replace file on same prescription */}
                         {rx.status === 'rejected' && (
                           <button
                             className="rx-delivery-btn"
                             style={{ background: '#dc2626' }}
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={() => startReupload(rx)}
                           >
-                            <Upload size={13} /> New Upload
+                            <Upload size={13} /> Re-submit
                           </button>
                         )}
 

@@ -5,6 +5,7 @@ const protect = require('../middleware/auth');
 const { prescriptionUpload } = require('../middleware/upload');
 const {
   uploadPrescription,
+  reuploadPrescription,
   getMyPrescriptions,
   getPrescription,
   deletePrescription,
@@ -17,6 +18,7 @@ router.post('/',    prescriptionUpload.single('prescription'), uploadPrescriptio
 router.get('/',     getMyPrescriptions);
 router.get('/:id',  getPrescription);
 router.delete('/:id', deletePrescription);
+router.patch('/:id/reupload', prescriptionUpload.single('prescription'), reuploadPrescription);
 router.post('/:id/request-delivery', requestDelivery);  // legacy
 
 module.exports = router;

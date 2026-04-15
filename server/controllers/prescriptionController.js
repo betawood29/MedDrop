@@ -112,6 +112,81 @@ const deletePrescription = async (req, res, next) => {
   }
 };
 
+// PATCH /api/prescriptions/:id/reupload
+// User replaces the file on a clarification_required or rejected prescription.
+// Resets to pending, preserving the same prescriptionId — keeps history clean on both sides.
+const reuploadPrescription = async (req, res, next) => {
+  try {
+    if (!req.file) throw ApiError.badRequest('Please upload a prescription image or PDF');
+
+    const prescription = await Prescription.findOne({ _id: req.params.id, user: req.user._id });
+    if (!prescription) throw ApiError.notFound('Prescription not found');
+
+    if (!['clarification_required', 'rejected'].includes(prescription.status)) {
+      throw ApiError.badRequest('Only prescriptions needing clarification or that are rejected can be re-uploaded');
+    }
+
+    const { note } = req.body;
+    const isImage  = req.file.mimetype.startsWith('image/');
+    const fileType = isImage ? 'image' : 'pdf';
+
+    // Upload new file first so we don't destroy the old one on failure
+    const uploadOptions = {
+      folder: 'meddrop/prescriptions',
+      resource_type: isImage ? 'image' : 'raw',
+      public_id: `rx_${req.user._id}_${Date.now()}`,
+    };
+    let cloudinaryResult;
+    await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(uploadOptions, (err, result) => {
+        if (err) return reject(err);
+        cloudinaryResult = result;
+        resolve(result);
+      });
+      stream.end(req.file.buffer);
+    });
+
+    // Delete old Cloudinary file (best-effort)
+    if (prescription.filePublicId) {
+      try {
+        await cloudinary.uploader.destroy(prescription.filePublicId, {
+          resource_type: prescription.fileType === 'image' ? 'image' : 'raw',
+        });
+      } catch (_) {}
+    }
+
+    // Reset to pending with new file — clear all review fields
+    prescription.fileUrl              = cloudinaryResult.secure_url;
+    prescription.filePublicId         = cloudinaryResult.public_id;
+    prescription.fileName             = req.file.originalname;
+    prescription.fileType             = fileType;
+    prescription.note                 = note !== undefined ? (note || '') : prescription.note;
+    prescription.status               = 'pending';
+    prescription.adminNote            = undefined;
+    prescription.clarificationMessage = undefined;
+    prescription.reviewedAt           = undefined;
+    prescription.reviewedBy           = undefined;
+    prescription.approvedMedicines    = [];
+    prescription.rejectedMedicines    = [];
+    prescription.expiresAt            = undefined;
+    prescription.isReusable           = false;
+    prescription.usageCount           = 0;
+    prescription.maxUsage             = 1;
+
+    await prescription.save();
+
+    emitToAdmin('new-prescription', {
+      prescriptionId: prescription.prescriptionId,
+      userName: req.user.name || req.user.phone,
+      isReupload: true,
+    });
+
+    ApiResponse.success(res, prescription, 'Prescription updated! Our pharmacist will review it shortly.');
+  } catch (err) {
+    next(err);
+  }
+};
+
 // POST /api/prescriptions/:id/request-delivery  (legacy — kept for backward compat)
 const requestDelivery = async (req, res, next) => {
   try {
@@ -326,6 +401,7 @@ const updateDeliveryStatus = async (req, res, next) => {
 
 module.exports = {
   uploadPrescription,
+  reuploadPrescription,
   getMyPrescriptions,
   getPrescription,
   deletePrescription,

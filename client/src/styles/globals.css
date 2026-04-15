@@ -3468,6 +3468,41 @@ img { max-width: 100%; display: block; }
 .rx-clarification-box strong { font-size: 0.75rem; display: block; margin-bottom: 3px; }
 .rx-clarification-box p { margin: 0; color: #7c3aed; }
 
+/* Clarification quick-consult row */
+.rx-clarify-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 2px;
+}
+.rx-clarify-label {
+  font-size: 0.73rem; color: var(--text-muted); width: 100%;
+}
+.rx-clarify-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.75rem; font-weight: 600;
+  border: none; border-radius: var(--radius-sm);
+  padding: 6px 12px; cursor: pointer; text-decoration: none;
+  transition: opacity 0.15s;
+}
+.rx-clarify-btn:hover { opacity: 0.85; }
+.rx-clarify-btn.call { background: #dcfce7; color: #16a34a; }
+.rx-clarify-btn.msg  { background: #f5f3ff; color: #7c3aed; }
+
+/* Re-upload context banner (inside upload card) */
+.rx-reupload-banner {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  background: #eff6ff; border: 1px solid #bfdbfe;
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  font-size: 0.82rem; color: #1d4ed8; margin-bottom: 12px;
+}
+.rx-reupload-banner svg { flex-shrink: 0; }
+.rx-reupload-banner span { flex: 1; line-height: 1.4; }
+.rx-reupload-cancel {
+  border: 1px solid #93c5fd; background: transparent; color: #1d4ed8;
+  border-radius: var(--radius-sm); padding: 4px 10px;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer;
+}
+.rx-reupload-cancel:hover { background: #dbeafe; }
+
 /* Reject reason */
 .rx-reject-reason {
   display: flex; align-items: flex-start; gap: 7px;

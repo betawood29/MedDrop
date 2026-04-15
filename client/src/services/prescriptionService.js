@@ -5,6 +5,10 @@ import api from './api';
 export const uploadPrescription = (formData) =>
   api.post('/prescriptions', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 
+// Replace file on an existing clarification_required / rejected prescription
+export const reuploadPrescription = (id, formData) =>
+  api.patch(`/prescriptions/${id}/reupload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+
 export const getMyPrescriptions = () => api.get('/prescriptions');
 
 export const getPrescription = (id) => api.get(`/prescriptions/${id}`);
