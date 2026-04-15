@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import { useAuth } from '../../hooks/useAuth';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
-import { ORDER_STATUSES, SOCKET_URL } from '../../utils/constants';
+import { ORDER_STATUSES, PRINT_ORDER_STATUSES, SOCKET_URL } from '../../utils/constants';
 
 const STATUS_ICONS = {
   confirmed: '✅',
@@ -15,6 +15,8 @@ const STATUS_ICONS = {
   gate: '📍',
   delivered: '🎉',
   cancelled: '❌',
+  printing: '🖨️',
+  ready: '📄',
 };
 
 const PROMPT_KEY = 'push-prompt-dismissed';
@@ -97,10 +99,14 @@ const OrderNotifications = () => {
     });
 
     socket.on('order-update', (data) => {
-      const statusInfo = ORDER_STATUSES[data.status];
+      const isPrint = data.type === 'print';
+      const statusInfo = isPrint
+        ? PRINT_ORDER_STATUSES[data.status]
+        : ORDER_STATUSES[data.status];
       if (!statusInfo) return;
 
       const icon = STATUS_ICONS[data.status] || '📋';
+      const orderPath = isPrint ? `/orders/print/${data.orderId}` : `/orders/${data.orderId}`;
 
       toast(
         (t) => (
@@ -108,7 +114,7 @@ const OrderNotifications = () => {
             style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
             onClick={() => {
               toast.dismiss(t.id);
-              navigate(`/orders/${data.orderId}`);
+              navigate(orderPath);
             }}
           >
             <span style={{ fontSize: '1.5rem' }}>{icon}</span>

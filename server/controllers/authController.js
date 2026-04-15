@@ -63,7 +63,7 @@ const verifyOtp = async (req, res, next) => {
     ApiResponse.success(res, {
       token,
       user: {
-        id: user._id,
+        _id: user._id,
         name: user.name,
         phone: user.phone,
         hostel: user.hostel,
@@ -94,7 +94,7 @@ const completeProfile = async (req, res, next) => {
     );
 
     ApiResponse.success(res, {
-      id: user._id,
+      _id: user._id,
       name: user.name,
       phone: user.phone,
       hostel: user.hostel,
@@ -110,7 +110,7 @@ const completeProfile = async (req, res, next) => {
 const getMe = async (req, res, next) => {
   try {
     ApiResponse.success(res, {
-      id: req.user._id,
+      _id: req.user._id,
       name: req.user.name,
       phone: req.user.phone,
       hostel: req.user.hostel,

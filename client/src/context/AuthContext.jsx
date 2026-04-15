@@ -6,6 +6,14 @@ import { getMe } from '../services/authService';
 
 export const AuthContext = createContext(null);
 
+// Normalize user object: old sessions stored `id` instead of `_id`
+const normalizeUser = (u) => {
+  if (!u) return u;
+  if (u._id) return u;
+  if (u.id) return { ...u, _id: u.id };
+  return u;
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -16,16 +24,17 @@ export const AuthProvider = ({ children }) => {
     const savedUser = localStorage.getItem('user');
     if (token && savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        setUser(normalizeUser(JSON.parse(savedUser)));
       } catch { /* ignore bad data */ }
     }
     setLoading(false);
   }, []);
 
   const login = useCallback((token, userData) => {
+    const u = normalizeUser(userData);
     localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(u));
+    setUser(u);
   }, []);
 
   const logout = useCallback(() => {
@@ -36,8 +45,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const updateUser = useCallback((userData) => {
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+    const u = normalizeUser(userData);
+    localStorage.setItem('user', JSON.stringify(u));
+    setUser(u);
   }, []);
 
   // Refresh user data from server

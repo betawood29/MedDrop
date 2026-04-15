@@ -714,7 +714,7 @@ const updatePrintOrderStatus = async (req, res, next) => {
       throw ApiError.badRequest('Invalid status');
     }
 
-    const order = await PrintOrder.findById(req.params.id);
+    const order = await PrintOrder.findById(req.params.id).populate('user', '_id');
     if (!order) throw ApiError.notFound('Print order not found');
 
     order.status = status;
@@ -724,9 +724,12 @@ const updatePrintOrderStatus = async (req, res, next) => {
     try {
       const { getIO } = require('../config/socket');
       const io = getIO();
-      io.to('admin').emit('order-update', { orderId: order.orderId, status, type: 'print' });
-      // Notify the user's room if they're listening
-      io.emit(`order-${order.orderId}`, { status, orderId: order.orderId });
+      const updatePayload = { orderId: order.orderId, status, type: 'print' };
+      io.to('admin').emit('order-update', updatePayload);
+      io.to(`order_${order.orderId}`).emit('order-update', updatePayload);
+      if (order.user) {
+        io.to(`user_${order.user._id || order.user}`).emit('order-update', updatePayload);
+      }
     } catch (socketErr) {
       // Socket not initialized
     }

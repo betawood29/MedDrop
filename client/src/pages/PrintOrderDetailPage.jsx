@@ -1,11 +1,12 @@
 // Print order detail page — full print order info with status tracking
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import PrintOrderDetail from '../components/orders/PrintOrderDetail';
 import Loader from '../components/common/Loader';
 import { getPrintOrder } from '../services/printService';
+import { useSocket } from '../hooks/useSocket';
 
 const PrintOrderDetailPage = () => {
   const { id } = useParams();
@@ -27,6 +28,12 @@ const PrintOrderDetailPage = () => {
     };
     fetchOrder();
   }, [id]);
+
+  const handleOrderUpdate = useCallback((data) => {
+    setOrder((prev) => prev ? { ...prev, status: data.status } : prev);
+  }, []);
+
+  useSocket(order?.orderId, handleOrderUpdate);
 
   if (loading) return <Loader text="Loading print order..." />;
   if (error) return <div className="page-container"><div className="error-banner">{error}</div></div>;
