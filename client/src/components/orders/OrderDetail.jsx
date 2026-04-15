@@ -1,7 +1,6 @@
 // Order detail component — shows full order info with item images, tracker, and delivery details
 
 import OrderTracker from './OrderTracker';
-import DeliveryReview from './DeliveryReview';
 import { formatPrice, formatDateTime } from '../../utils/formatters';
 
 const OrderDetail = ({ order }) => {
@@ -64,10 +63,6 @@ const OrderDetail = ({ order }) => {
           {order.note && <div className="detail-row"><span>Note</span><span>{order.note}</span></div>}
         </div>
       </div>
-
-      {order.status === 'delivered' && (
-        <DeliveryReview orderId={order.orderId} />
-      )}
     </div>
   );
 };

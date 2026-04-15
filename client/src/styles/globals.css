@@ -2572,45 +2572,6 @@ img { max-width: 100%; display: block; }
   .db-page { max-width: 1400px; }
 }
 
-/* ===== DELIVERY REVIEW CARD ===== */
-.delivery-review-card {
-  background: var(--bg-white); border-radius: var(--radius);
-  box-shadow: var(--shadow); border: 2px solid var(--primary-light);
-  padding: 18px; margin-top: 16px;
-}
-.review-header {
-  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px;
-}
-.review-emoji { font-size: 1.6rem; line-height: 1; flex-shrink: 0; }
-.review-header > div strong { font-size: 0.95rem; font-weight: 700; color: var(--text); display: block; }
-.review-header > div p { font-size: 0.78rem; color: var(--text-secondary); margin: 2px 0 0; }
-.review-body { display: flex; flex-direction: column; gap: 14px; }
-.review-question { display: flex; flex-direction: column; gap: 8px; }
-.review-question > span { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
-.review-stars { display: flex; gap: 4px; }
-.review-star-btn {
-  background: none; border: none; cursor: pointer;
-  color: var(--border); padding: 2px; transition: color 0.15s, transform 0.15s;
-}
-.review-star-btn.active { color: #f59e0b; }
-.review-star-btn:hover { transform: scale(1.15); }
-.review-star-btn svg { display: block; }
-.review-star-btn.active svg { fill: #f59e0b; }
-.review-comment-wrap { display: flex; flex-direction: column; gap: 6px; }
-.review-textarea { resize: none; min-height: 72px; font-size: 0.85rem; }
-.review-submit-btn {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  width: 100%;
-}
-.review-submit-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
-.delivery-review-card.review-done {
-  display: flex; align-items: center; gap: 14px;
-  border-color: #bbf7d0; background: #f0fdf4;
-}
-.review-done-icon { color: #16a34a; flex-shrink: 0; }
-.review-done strong { font-size: 0.9rem; font-weight: 700; color: #15803d; }
-.review-done p { font-size: 0.8rem; color: #166534; margin: 2px 0 0; }
-
 /* ===== STATIC PAGES (Terms, Privacy, Contact) ===== */
 .static-page-card {
   background: var(--bg-white); border-radius: var(--radius);

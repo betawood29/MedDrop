@@ -7,12 +7,10 @@ const feedbackSchema = new mongoose.Schema(
     phone: { type: String, trim: true },
     type: {
       type: String,
-      enum: ['suggestion', 'complaint', 'bug', 'general', 'delivery_review'],
+      enum: ['suggestion', 'complaint', 'bug', 'general'],
       default: 'general',
     },
-    orderId: { type: String, trim: true },          // for delivery reviews
-    rating:  { type: Number, min: 1, max: 5 },     // 1–5 star rating
-    message: { type: String, trim: true, maxlength: 1000 },
+    message: { type: String, required: true, trim: true, maxlength: 1000 },
     status: { type: String, enum: ['new', 'read', 'resolved'], default: 'new' },
   },
   { timestamps: true }
