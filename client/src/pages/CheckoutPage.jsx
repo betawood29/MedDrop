@@ -1,10 +1,14 @@
 // Checkout page — prepaid only
 // Flow: initiate payment → Razorpay modal → verify & create order
-// No order is created until payment succeeds
+// Rx items gate: blocks checkout when prescription status is none/pending/rejected/clarification_required
+// Rx authorize-only: payment captured after admin confirms the Rx order
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, Upload, CheckCircle, Clock } from 'lucide-react';
+import {
+  ArrowLeft, ShieldCheck, Upload, CheckCircle, Clock,
+  AlertTriangle, MessageSquare, Info,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import CartSummary from '../components/cart/CartSummary';
 import DeliveryForm from '../components/cart/DeliveryForm';
@@ -13,48 +17,107 @@ import { useAuth } from '../hooks/useAuth';
 import { initiatePayment, verifyAndCreateOrder } from '../services/orderService';
 import { createPrintOrder } from '../services/printService';
 import { getMyPrescriptions } from '../services/prescriptionService';
+import { RX_BLOCKING_STATUSES } from '../utils/constants';
+
+// ── per-status banner config ─────────────────────────────────────────────────
+const RX_BANNER = {
+  approved: {
+    icon: CheckCircle,
+    className: 'checkout-rx-banner approved',
+    title: 'Prescription Verified',
+    body: 'Your prescription is approved — you can proceed with payment.',
+    showUpload: false,
+  },
+  partially_approved: {
+    icon: CheckCircle,
+    className: 'checkout-rx-banner approved',
+    title: 'Prescription Partially Approved',
+    body: 'Some medicines are approved. Only approved items will be included in your order.',
+    showUpload: false,
+  },
+  pending: {
+    icon: Clock,
+    className: 'checkout-rx-banner pending',
+    title: 'Prescription Under Review',
+    body: 'Checkout is blocked until our pharmacist approves your prescription.',
+    showUpload: false,
+  },
+  clarification_required: {
+    icon: MessageSquare,
+    className: 'checkout-rx-banner clarify',
+    title: 'Clarification Needed',
+    body: 'Our pharmacist needs more information. Go to the Prescription page to respond.',
+    showUpload: false,
+    showViewRx: true,
+  },
+  rejected: {
+    icon: AlertTriangle,
+    className: 'checkout-rx-banner blocked',
+    title: 'Prescription Rejected',
+    body: 'Your prescription was rejected. Please upload a new one to proceed.',
+    showUpload: true,
+  },
+  none: {
+    icon: ShieldCheck,
+    className: 'checkout-rx-banner blocked',
+    title: 'Prescription Required',
+    body: 'Your cart has prescription medicines. Upload a valid prescription to proceed.',
+    showUpload: true,
+  },
+};
 
 const CheckoutPage = () => {
   const { items, printOrder, getPrintOrderWithFiles, clearAll, hasAnything } = useCart();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [rxStatus, setRxStatus] = useState(null); // null | 'approved' | 'pending' | 'none'
+  // null = loading, 'approved' | 'partially_approved' | 'pending' | 'rejected' | 'clarification_required' | 'none'
+  const [rxStatus, setRxStatus] = useState(null);
   const navigate = useNavigate();
 
-  // Check if any cart item requires a prescription
-  const hasRxItems = items.some((i) => i.requiresPrescription);
+  const rxItems   = items.filter((i) => i.requiresPrescription);
+  const hasRxItems = rxItems.length > 0;
 
-  // If cart has Rx items, check if user has a valid prescription
   useEffect(() => {
-    if (!hasRxItems || !user) return;
+    if (!hasRxItems || !user) { setRxStatus(null); return; }
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     getMyPrescriptions()
       .then((res) => {
         const prescriptions = res.data.data || [];
-        // "unused" = approved, not linked to any previous order, no delivery request
-        const hasUnusedApproved = prescriptions.some(
-          (p) => p.status === 'approved' && !p.order && !p.deliveryRequest?.hostel
+        const latestValid = prescriptions.find(
+          (p) =>
+            ['approved', 'partially_approved'].includes(p.status) &&
+            !p.order &&
+            !p.deliveryRequest?.hostel &&
+            new Date(p.createdAt).getTime() > thirtyDaysAgo
         );
-        const hasPending = prescriptions.some((p) => p.status === 'pending');
-
-        if (hasUnusedApproved) {
-          setRxStatus('approved');
-        } else if (hasPending) {
-          setRxStatus('pending');
-        } else {
-          setRxStatus('none');
-        }
+        if (latestValid) { setRxStatus(latestValid.status); return; }
+        const latest = prescriptions[0];
+        if (!latest) { setRxStatus('none'); return; }
+        setRxStatus(
+          ['pending', 'rejected', 'clarification_required'].includes(latest.status)
+            ? latest.status
+            : 'none'
+        );
       })
       .catch(() => setRxStatus('none'));
   }, [hasRxItems, user]);
 
-  const openRazorpay = (razorpayOrderId, amount, keyId) => {
+  useEffect(() => {
+    if (!hasAnything) navigate('/cart');
+  }, [hasAnything, navigate]);
+
+  const checkoutBlocked = hasRxItems && user && RX_BLOCKING_STATUSES.has(rxStatus ?? 'none');
+  const banner = rxStatus ? RX_BANNER[rxStatus] : null;
+  const BannerIcon = banner?.icon;
+
+  const openRazorpay = (razorpayOrderId, amount, keyId, authorizeOnly) => {
     return new Promise((resolve, reject) => {
       const options = {
         key: keyId,
         amount,
         currency: 'INR',
         name: 'MedDrop',
-        description: 'Order Payment',
+        description: authorizeOnly ? 'Prescription Order (Authorization Hold)' : 'Order Payment',
         order_id: razorpayOrderId,
         prefill: {
           contact: user?.phone ? `+91${user.phone}` : '',
@@ -79,18 +142,17 @@ const CheckoutPage = () => {
     try {
       let shopOrderId = null;
 
-      // Handle shop items — pay first, then create order
       if (items.length > 0) {
         const cartItems = items.map((i) => ({ product: i.product, quantity: i.quantity }));
 
-        // Step 1: Initiate payment (validates cart, creates Razorpay order — NO real order yet)
+        // Step 1: Initiate payment (validates cart, creates Razorpay order)
         const initRes = await initiatePayment({ items: cartItems, hostel, gate, note });
-        const { razorpayOrderId, amount, keyId } = initRes.data.data;
+        const { razorpayOrderId, amount, keyId, authorizeOnly } = initRes.data.data;
 
-        // Step 2: Open Razorpay checkout modal
-        const paymentResponse = await openRazorpay(razorpayOrderId, amount, keyId);
+        // Step 2: Open Razorpay — authorize-only for Rx orders (captured after admin confirms)
+        const paymentResponse = await openRazorpay(razorpayOrderId, amount, keyId, authorizeOnly);
 
-        // Step 3: Verify payment & create actual order (only runs if payment succeeded)
+        // Step 3: Verify payment & create actual order
         const verifyRes = await verifyAndCreateOrder({
           razorpay_order_id: paymentResponse.razorpay_order_id,
           razorpay_payment_id: paymentResponse.razorpay_payment_id,
@@ -125,11 +187,9 @@ const CheckoutPage = () => {
         formData.append('hostel', hostel);
         formData.append('gate', gate);
         formData.append('note', note);
-
         await createPrintOrder(formData);
       }
 
-      // Success — clear cart and navigate
       clearAll();
       if (items.length > 0 && printOrder) {
         toast.success('Orders placed & paid!');
@@ -140,7 +200,6 @@ const CheckoutPage = () => {
       }
       navigate(shopOrderId ? `/orders/${shopOrderId}` : '/orders');
     } catch (err) {
-      // Payment failed/cancelled — stay on checkout, cart untouched
       const msg = err.message || err.response?.data?.message || 'Something went wrong';
       if (msg === 'Payment cancelled') {
         toast.error('Payment cancelled. Try again when ready.');
@@ -151,10 +210,6 @@ const CheckoutPage = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!hasAnything) navigate('/cart');
-  }, [hasAnything, navigate]);
 
   if (!hasAnything) return null;
 
@@ -167,35 +222,39 @@ const CheckoutPage = () => {
         <h2 className="page-title">Checkout</h2>
       </div>
 
-      {/* Prescription status banner for Rx items */}
-      {hasRxItems && rxStatus === 'approved' && (
-        <div className="checkout-rx-banner approved">
-          <CheckCircle size={18} className="checkout-rx-icon" />
+      {/* Prescription status banner */}
+      {hasRxItems && banner && (
+        <div className={banner.className}>
+          {BannerIcon && <BannerIcon size={18} className="checkout-rx-icon" />}
           <div className="checkout-rx-text">
-            <strong>Prescription Verified</strong>
-            <p>Your prescription has been approved. You can proceed with the order.</p>
+            <strong>{banner.title}</strong>
+            <p>{banner.body}</p>
           </div>
+          {banner.showUpload && (
+            <button className="checkout-rx-btn" onClick={() => navigate('/prescription')}>
+              <Upload size={14} /> Upload Rx
+            </button>
+          )}
+          {banner.showViewRx && (
+            <button
+              className="checkout-rx-btn"
+              style={{ background: '#7c3aed' }}
+              onClick={() => navigate('/prescription')}
+            >
+              <MessageSquare size={14} /> View Clarification
+            </button>
+          )}
         </div>
       )}
-      {hasRxItems && rxStatus === 'pending' && (
-        <div className="checkout-rx-banner pending">
-          <Clock size={18} className="checkout-rx-icon" />
-          <div className="checkout-rx-text">
-            <strong>Prescription Under Review</strong>
-            <p>Your prescription is being reviewed by our pharmacist. You can place the order now — it will only be dispatched after approval.</p>
-          </div>
-        </div>
-      )}
-      {hasRxItems && rxStatus === 'none' && (
-        <div className="checkout-rx-banner blocked">
-          <ShieldCheck size={18} className="checkout-rx-icon" />
-          <div className="checkout-rx-text">
-            <strong>Prescription Required</strong>
-            <p>Your cart has prescription medicines. Upload a prescription to proceed.</p>
-          </div>
-          <button className="checkout-rx-btn" onClick={() => navigate('/prescription')}>
-            <Upload size={14} /> Upload Rx
-          </button>
+
+      {/* Authorize-only notice for approved Rx orders */}
+      {hasRxItems && !checkoutBlocked && rxStatus && (
+        <div className="checkout-rx-authorize-notice">
+          <Info size={15} />
+          <span>
+            Your payment will be <strong>held</strong> (not charged) until our pharmacist confirms
+            your prescription. You won&apos;t be charged if the order is cancelled.
+          </span>
         </div>
       )}
 
@@ -204,10 +263,9 @@ const CheckoutPage = () => {
           <DeliveryForm
             onSubmit={handlePlaceOrder}
             loading={loading}
-            disabled={hasRxItems && rxStatus === 'none'}
+            disabled={checkoutBlocked}
           />
         </div>
-
         <div className="checkout-right">
           <CartSummary />
         </div>

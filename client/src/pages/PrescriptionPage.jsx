@@ -1,27 +1,47 @@
-// Prescription upload page
-// Flow: upload → pending → admin approves → user can request delivery OR order medicines
+// Prescription page — upload + status tracking + pre-fill cart from approved medicines
+// Progress stepper: Uploaded → Under Review → [Clarification] → Approved / Rejected
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Upload, FileText, CheckCircle, XCircle, Clock,
   Trash2, Eye, PhoneCall, MessageSquare, ShieldCheck, ChevronRight,
-  Truck, X
+  ShoppingCart, AlertTriangle, RefreshCw, Info,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
-  uploadPrescription, getMyPrescriptions, deletePrescription, requestDelivery
+  uploadPrescription, getMyPrescriptions, deletePrescription,
 } from '../services/prescriptionService';
-import { GATE_OPTIONS, HOSTEL_OPTIONS, DELIVERY_REQUEST_STATUSES } from '../utils/constants';
+import { useCart } from '../hooks/useCart';
 
+// ── stepper config ────────────────────────────────────────────────────────────
+const STEPS = [
+  { key: 'uploaded',  label: 'Uploaded' },
+  { key: 'review',    label: 'Under Review' },
+  { key: 'decision',  label: 'Decision' },
+];
+
+const getStepState = (status) => {
+  // returns [0-based index of active step, whether it completed or not]
+  if (!status || status === 'pending')                return { active: 1 };
+  if (status === 'clarification_required')            return { active: 1, clarification: true };
+  if (status === 'approved' || status === 'partially_approved') return { active: 2, done: true };
+  if (status === 'rejected')                          return { active: 2, rejected: true };
+  return { active: 0 };
+};
+
+// ── per-status card config ────────────────────────────────────────────────────
 const STATUS_CONFIG = {
-  pending:  { label: 'Under Review', color: '#f59e0b', bg: '#fef3c7', icon: Clock },
-  approved: { label: 'Approved',     color: '#22c55e', bg: '#dcfce7', icon: CheckCircle },
-  rejected: { label: 'Rejected',     color: '#ef4444', bg: '#fee2e2', icon: XCircle },
+  pending:                { label: 'Under Review',       color: '#f59e0b', bg: '#fef3c7', icon: Clock },
+  approved:               { label: 'Approved',           color: '#22c55e', bg: '#dcfce7', icon: CheckCircle },
+  partially_approved:     { label: 'Partially Approved', color: '#3b82f6', bg: '#eff6ff', icon: CheckCircle },
+  rejected:               { label: 'Rejected',           color: '#ef4444', bg: '#fee2e2', icon: AlertTriangle },
+  clarification_required: { label: 'Clarification Needed', color: '#8b5cf6', bg: '#f5f3ff', icon: MessageSquare },
 };
 
 const PrescriptionPage = () => {
-  const navigate  = useNavigate();
+  const navigate     = useNavigate();
+  const { addItem }  = useCart();
   const fileInputRef = useRef(null);
 
   const [prescriptions, setPrescriptions] = useState([]);
@@ -33,13 +53,6 @@ const PrescriptionPage = () => {
   const [dragOver,      setDragOver]      = useState(false);
   const [showGuide,     setShowGuide]     = useState(false);
   const [viewingRx,     setViewingRx]     = useState(null);
-
-  // Delivery request modal state
-  const [deliveryModal, setDeliveryModal] = useState(null); // prescription object
-  const [dlvHostel,     setDlvHostel]     = useState('');
-  const [dlvGate,       setDlvGate]       = useState('');
-  const [dlvNote,       setDlvNote]       = useState('');
-  const [dlvSubmitting, setDlvSubmitting] = useState(false);
 
   const fetchPrescriptions = useCallback(async () => {
     try {
@@ -54,7 +67,7 @@ const PrescriptionPage = () => {
   /* ── file helpers ── */
   const handleFileSelect = (file) => {
     if (!file) return;
-    if (!['image/jpeg','image/jpg','image/png','application/pdf'].includes(file.type)) {
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'].includes(file.type)) {
       toast.error('Only JPG, PNG, or PDF files are allowed'); return;
     }
     if (file.size > 10 * 1024 * 1024) { toast.error('File size must be under 10 MB'); return; }
@@ -96,27 +109,30 @@ const PrescriptionPage = () => {
     } catch (err) { toast.error(err.response?.data?.message || 'Could not delete'); }
   };
 
-  /* ── delivery request ── */
-  const openDeliveryModal = (rx) => {
-    setDeliveryModal(rx); setDlvHostel(''); setDlvGate(''); setDlvNote('');
+  /* ── pre-fill cart from approved medicines ── */
+  const handlePreFillCart = (rx) => {
+    const medicines = rx.approvedMedicines || [];
+    if (medicines.length === 0) {
+      toast('Add your prescribed medicines to cart, then checkout!', { icon: '💊', duration: 4000 });
+      navigate('/');
+      return;
+    }
+    medicines.forEach((m) => {
+      addItem(
+        {
+          _id: m.product,
+          name: m.name,
+          price: m.price,
+          image: m.image,
+          stockQty: 0,           // 0 = no stock limit in addItem
+          requiresPrescription: true,
+        },
+        m.quantity || 1,
+      );
+    });
+    toast.success(`${medicines.length} medicine${medicines.length !== 1 ? 's' : ''} added to cart!`);
+    navigate('/cart');
   };
-
-  const handleRequestDelivery = async () => {
-    if (!dlvHostel) { toast.error('Please select your hostel'); return; }
-    if (!dlvGate)   { toast.error('Please select pickup gate');  return; }
-    setDlvSubmitting(true);
-    try {
-      await requestDelivery(deliveryModal._id, { hostel: dlvHostel, gate: dlvGate, note: dlvNote });
-      toast.success('Delivery requested! We will arrange your medicines.');
-      setDeliveryModal(null);
-      fetchPrescriptions();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Could not request delivery');
-    } finally { setDlvSubmitting(false); }
-  };
-
-  /* ── helpers ── */
-  const isUnused = (rx) => !rx.order && !rx.deliveryRequest?.hostel;
 
   return (
     <div className="rx-page">
@@ -127,7 +143,7 @@ const PrescriptionPage = () => {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h1 className="rx-title">Upload Prescription</h1>
+          <h1 className="rx-title">Prescriptions</h1>
           <p className="rx-subtitle">Required for prescription medicines</p>
         </div>
       </div>
@@ -155,7 +171,7 @@ const PrescriptionPage = () => {
                 <div className="rx-drop-icon-wrap"><Upload size={32} /></div>
                 <p className="rx-drop-title">Upload Prescription</p>
                 <p className="rx-drop-hint">Drag & drop or <span className="rx-link">browse files</span></p>
-                <p className="rx-drop-formats">JPG, PNG, PDF • Max 10 MB</p>
+                <p className="rx-drop-formats">JPG, PNG, PDF · Max 10 MB</p>
               </div>
             ) : (
               <div className="rx-preview-wrap">
@@ -198,9 +214,9 @@ const PrescriptionPage = () => {
           </button>
           {showGuide && (
             <div className="rx-guide">
-              <div className="rx-guide-item"><CheckCircle size={14} /><span>Doctor's name, signature & stamp</span></div>
-              <div className="rx-guide-item"><CheckCircle size={14} /><span>Patient name & date</span></div>
-              <div className="rx-guide-item"><CheckCircle size={14} /><span>Medicine name, dose & duration</span></div>
+              <div className="rx-guide-item"><CheckCircle size={14} /><span>Doctor&apos;s name, signature &amp; stamp</span></div>
+              <div className="rx-guide-item"><CheckCircle size={14} /><span>Patient name &amp; date</span></div>
+              <div className="rx-guide-item"><CheckCircle size={14} /><span>Medicine name, dose &amp; duration</span></div>
               <div className="rx-guide-item"><CheckCircle size={14} /><span>Hospital/clinic address</span></div>
             </div>
           )}
@@ -213,7 +229,7 @@ const PrescriptionPage = () => {
 
         {/* Consult options */}
         <div className="rx-consult-section">
-          <p className="rx-consult-heading">Don't have a prescription?</p>
+          <p className="rx-consult-heading">Don&apos;t have a prescription?</p>
           <div className="rx-consult-cards">
             <a href="tel:+911234567890" className="rx-consult-card">
               <div className="rx-consult-icon phone"><PhoneCall size={22} /></div>
@@ -236,78 +252,171 @@ const PrescriptionPage = () => {
 
         {/* ── My Prescriptions history ── */}
         <div className="rx-history-section">
-          <h2 className="rx-history-title">My Prescriptions</h2>
+          <div className="rx-history-heading-row">
+            <h2 className="rx-history-title">My Prescriptions</h2>
+            <button className="rx-refresh-btn" onClick={fetchPrescriptions} title="Refresh">
+              <RefreshCw size={14} />
+            </button>
+          </div>
 
           {loading ? (
-            <div className="rx-history-loading">{[1,2].map((i) => <div key={i} className="rx-skeleton" />)}</div>
+            <div className="rx-history-loading">{[1, 2].map((i) => <div key={i} className="rx-skeleton" />)}</div>
           ) : prescriptions.length === 0 ? (
             <div className="rx-empty"><FileText size={40} /><p>No prescriptions uploaded yet</p></div>
           ) : (
             <div className="rx-history-list">
               {prescriptions.map((rx) => {
-                const cfg       = STATUS_CONFIG[rx.status] || STATUS_CONFIG.pending;
+                const cfg        = STATUS_CONFIG[rx.status] || STATUS_CONFIG.pending;
                 const StatusIcon = cfg.icon;
-                const dlvReq    = rx.deliveryRequest?.hostel ? rx.deliveryRequest : null;
-                const dlvCfg    = dlvReq ? DELIVERY_REQUEST_STATUSES[dlvReq.status] : null;
+                const stepState  = getStepState(rx.status);
+                const hasApprovedMeds = (rx.approvedMedicines || []).length > 0;
+                const isApprovedOrPartial = ['approved', 'partially_approved'].includes(rx.status);
+                const isReusable = rx.isReusable;
+                const expiresAt  = rx.expiresAt ? new Date(rx.expiresAt) : null;
+                const isExpired  = expiresAt && expiresAt < new Date();
 
                 return (
-                  <div key={rx._id} className="rx-history-card">
+                  <div key={rx._id} className={`rx-history-card${isApprovedOrPartial && !isExpired ? ' rx-history-card-approved' : ''}`}>
 
-                    {/* Thumbnail */}
-                    <div className="rx-history-thumb" onClick={() => setViewingRx(rx)}>
-                      {rx.fileType === 'image'
-                        ? <img src={rx.fileUrl} alt="Rx" />
-                        : <div className="rx-pdf-thumb"><FileText size={24} /></div>
-                      }
-                      <div className="rx-history-overlay"><Eye size={16} /></div>
+                    {/* ── Progress Stepper ── */}
+                    <div className="rx-stepper">
+                      {STEPS.map((step, i) => {
+                        const isDone   = i < stepState.active;
+                        const isActive = i === stepState.active;
+                        const isClarify  = isActive && stepState.clarification;
+                        const isRejected = isActive && stepState.rejected;
+                        return (
+                          <div key={step.key} className="rx-step-item">
+                            <div className={`rx-step-circle ${isDone ? 'done' : ''} ${isActive && !isClarify && !isRejected ? 'active' : ''} ${isClarify ? 'clarify' : ''} ${isRejected ? 'rejected' : ''}`}>
+                              {isDone ? <CheckCircle size={13} /> : isRejected ? <XCircle size={13} /> : i + 1}
+                            </div>
+                            <span className={`rx-step-label ${isActive ? 'active' : ''}`}>
+                              {i === 2 && stepState.rejected ? 'Rejected' : i === 2 && stepState.done ? 'Approved' : i === 1 && isClarify ? 'Clarify' : step.label}
+                            </span>
+                            {i < STEPS.length - 1 && <div className={`rx-step-line ${isDone ? 'done' : ''}`} />}
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    {/* Info */}
-                    <div className="rx-history-info">
-                      <div className="rx-history-id">{rx.prescriptionId}</div>
-                      <div className="rx-history-date">
-                        {new Date(rx.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}
+                    {/* ── Card body ── */}
+                    <div className="rx-history-body">
+                      {/* Thumbnail */}
+                      <div className="rx-history-thumb" onClick={() => setViewingRx(rx)}>
+                        {rx.fileType === 'image'
+                          ? <img src={rx.fileUrl} alt="Rx" />
+                          : <div className="rx-pdf-thumb"><FileText size={24} /></div>
+                        }
+                        <div className="rx-history-overlay"><Eye size={16} /></div>
                       </div>
-                      {rx.note && <div className="rx-history-note">{rx.note}</div>}
 
-                      {/* Delivery request status */}
-                      {dlvReq && dlvCfg && (
-                        <div className="rx-delivery-status" style={{ color: dlvCfg.color, background: dlvCfg.bg }}>
-                          <Truck size={12} />
-                          <span>{dlvCfg.label} · {dlvReq.hostel}, {dlvReq.gate}</span>
+                      {/* Info */}
+                      <div className="rx-history-info">
+                        <div className="rx-history-id">{rx.prescriptionId}</div>
+                        <div className="rx-history-date">
+                          {new Date(rx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>
-                      )}
+                        {rx.note && <div className="rx-history-note">{rx.note}</div>}
 
-                      {/* Admin rejection note */}
-                      {rx.status === 'rejected' && rx.adminNote && (
-                        <div className="rx-reject-reason">Reason: {rx.adminNote}</div>
-                      )}
+                        {/* Clarification message from admin */}
+                        {rx.status === 'clarification_required' && rx.clarificationMessage && (
+                          <div className="rx-clarification-box">
+                            <MessageSquare size={13} />
+                            <div>
+                              <strong>Pharmacist says:</strong>
+                              <p>{rx.clarificationMessage}</p>
+                            </div>
+                          </div>
+                        )}
 
-                      {/* Order placed — prescription used */}
-                      {rx.order && (
-                        <div className="rx-used-badge"><CheckCircle size={11} /> Used for order</div>
-                      )}
-                    </div>
+                        {/* Rejection reason */}
+                        {rx.status === 'rejected' && rx.adminNote && (
+                          <div className="rx-reject-reason">
+                            <AlertTriangle size={12} /> Reason: {rx.adminNote}
+                          </div>
+                        )}
 
-                    {/* Right column */}
-                    <div className="rx-history-right">
-                      <span className="rx-status-badge" style={{ color: cfg.color, background: cfg.bg }}>
-                        <StatusIcon size={12} /> {cfg.label}
-                      </span>
+                        {/* Expiry & reusability info */}
+                        {isApprovedOrPartial && expiresAt && (
+                          <div className={`rx-expiry-info ${isExpired ? 'expired' : ''}`}>
+                            <Info size={12} />
+                            {isExpired ? 'Expired' : `Valid until ${expiresAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                            {isReusable && !isExpired && rx.maxUsage > 0 && (
+                              <span className="rx-usage-badge">
+                                {rx.usageCount || 0}/{rx.maxUsage} uses
+                              </span>
+                            )}
+                          </div>
+                        )}
 
-                      {/* Request Delivery — only on approved, unused, and no delivery request yet */}
-                      {rx.status === 'approved' && isUnused(rx) && (
-                        <button className="rx-delivery-btn" onClick={() => openDeliveryModal(rx)}>
-                          <Truck size={13} /> Request Delivery
-                        </button>
-                      )}
+                        {/* Approved medicines list */}
+                        {isApprovedOrPartial && hasApprovedMeds && (
+                          <div className="rx-approved-meds">
+                            <span className="rx-approved-meds-label">Approved medicines:</span>
+                            {rx.approvedMedicines.map((m, idx) => (
+                              <span key={idx} className="rx-med-pill">{m.name}</span>
+                            ))}
+                          </div>
+                        )}
 
-                      {/* Delete — only pending */}
-                      {rx.status === 'pending' && (
-                        <button className="rx-delete-btn" onClick={() => handleDelete(rx._id)}>
-                          <Trash2 size={14} />
-                        </button>
-                      )}
+                        {/* Rejected medicines */}
+                        {rx.status === 'partially_approved' && (rx.rejectedMedicines || []).length > 0 && (
+                          <div className="rx-rejected-meds">
+                            {rx.rejectedMedicines.map((m, idx) => (
+                              <span key={idx} className="rx-med-pill rejected">{m.name}</span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Order placed */}
+                        {rx.order && (
+                          <div className="rx-used-badge"><CheckCircle size={11} /> Used for order</div>
+                        )}
+                      </div>
+
+                      {/* Right column */}
+                      <div className="rx-history-right">
+                        <span className="rx-status-badge" style={{ color: cfg.color, background: cfg.bg }}>
+                          <StatusIcon size={12} /> {cfg.label}
+                        </span>
+
+                        {/* Approved + not expired + not used → start order */}
+                        {isApprovedOrPartial && !rx.order && !isExpired && (
+                          <button className="rx-delivery-btn" onClick={() => handlePreFillCart(rx)}>
+                            <ShoppingCart size={13} />
+                            {hasApprovedMeds ? 'Fill Cart' : 'Order Medicines'}
+                          </button>
+                        )}
+
+                        {/* Clarification → go to re-upload or message */}
+                        {rx.status === 'clarification_required' && (
+                          <button
+                            className="rx-delivery-btn"
+                            style={{ background: '#7c3aed' }}
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <Upload size={13} /> Re-upload
+                          </button>
+                        )}
+
+                        {/* Rejected → re-upload */}
+                        {rx.status === 'rejected' && (
+                          <button
+                            className="rx-delivery-btn"
+                            style={{ background: '#dc2626' }}
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <Upload size={13} /> New Upload
+                          </button>
+                        )}
+
+                        {/* Delete — only pending */}
+                        {rx.status === 'pending' && (
+                          <button className="rx-delete-btn" onClick={() => handleDelete(rx._id)}>
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -338,49 +447,11 @@ const PrescriptionPage = () => {
               </span>
             </div>
             {viewingRx.adminNote && <p className="rx-lightbox-note">{viewingRx.adminNote}</p>}
-          </div>
-        </div>
-      )}
-
-      {/* ── Delivery Request Modal ── */}
-      {deliveryModal && (
-        <div className="modal-overlay" onClick={() => !dlvSubmitting && setDeliveryModal(null)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="rx-dlv-modal-header">
-              <div className="rx-dlv-modal-icon"><Truck size={26} /></div>
-              <div>
-                <h3 className="modal-title" style={{ textAlign:'left' }}>Request Medicine Delivery</h3>
-                <p className="modal-sub" style={{ textAlign:'left' }}>
-                  {deliveryModal.prescriptionId} · Our pharmacist will prepare your medicines
-                </p>
-              </div>
-              <button className="rx-dlv-close" onClick={() => setDeliveryModal(null)}><X size={18} /></button>
-            </div>
-
-            <label className="rx-note-label">Hostel *</label>
-            <select className="rx-note-input" style={{ padding:'10px 12px' }} value={dlvHostel} onChange={(e) => setDlvHostel(e.target.value)}>
-              <option value="">Select your hostel</option>
-              {HOSTEL_OPTIONS.map((h) => <option key={h} value={h}>{h}</option>)}
-            </select>
-
-            <label className="rx-note-label" style={{ marginTop:10 }}>Pickup Gate *</label>
-            <select className="rx-note-input" style={{ padding:'10px 12px' }} value={dlvGate} onChange={(e) => setDlvGate(e.target.value)}>
-              <option value="">Select gate</option>
-              {GATE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
-            </select>
-
-            <label className="rx-note-label" style={{ marginTop:10 }}>Note (optional)</label>
-            <textarea className="rx-note-input" rows={2} maxLength={300}
-              placeholder="Any specific requirement or timing preference..."
-              value={dlvNote} onChange={(e) => setDlvNote(e.target.value)}
-            />
-
-            <div className="modal-actions" style={{ marginTop:14 }}>
-              <button className="modal-cancel-btn" onClick={() => setDeliveryModal(null)} disabled={dlvSubmitting}>Cancel</button>
-              <button className="modal-confirm-btn success" onClick={handleRequestDelivery} disabled={dlvSubmitting}>
-                {dlvSubmitting ? 'Requesting...' : <><Truck size={15} /> Request Delivery</>}
-              </button>
-            </div>
+            {viewingRx.clarificationMessage && (
+              <p className="rx-lightbox-note" style={{ color: '#7c3aed' }}>
+                Pharmacist: {viewingRx.clarificationMessage}
+              </p>
+            )}
           </div>
         </div>
       )}

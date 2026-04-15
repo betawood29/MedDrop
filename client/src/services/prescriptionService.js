@@ -1,20 +1,15 @@
-// Prescription service — upload, list, and delete prescriptions
+// Prescription service
 
 import api from './api';
 
 export const uploadPrescription = (formData) =>
-  api.post('/prescriptions', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  api.post('/prescriptions', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 
-export const getMyPrescriptions = () =>
-  api.get('/prescriptions');
+export const getMyPrescriptions = () => api.get('/prescriptions');
 
-export const getPrescription = (id) =>
-  api.get(`/prescriptions/${id}`);
+export const getPrescription = (id) => api.get(`/prescriptions/${id}`);
 
-export const deletePrescription = (id) =>
-  api.delete(`/prescriptions/${id}`);
+export const deletePrescription = (id) => api.delete(`/prescriptions/${id}`);
 
-export const requestDelivery = (id, data) =>
-  api.post(`/prescriptions/${id}/request-delivery`, data);
+// Legacy delivery request (kept for backward compat)
+export const requestDelivery = (id, data) => api.post(`/prescriptions/${id}/request-delivery`, data);

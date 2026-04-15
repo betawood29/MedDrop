@@ -69,11 +69,15 @@ const orderSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'paid', 'failed', 'refunded'],
+      enum: ['pending', 'authorized', 'paid', 'failed', 'refunded'],
       default: 'pending',
     },
     razorpayOrderId: String,
     razorpayPaymentId: String,
+    // For Rx orders: payment is authorized (not captured) until admin confirms
+    requiresCapture: { type: Boolean, default: false },
+    // Prescription used for this order (for traceability)
+    prescription: { type: mongoose.Schema.Types.ObjectId, ref: 'Prescription' },
   },
   { timestamps: true }
 );

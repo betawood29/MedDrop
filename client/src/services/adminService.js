@@ -108,8 +108,17 @@ export const updatePrintOrderStatus = (id, status) =>
 export const getAdminPrescriptions = (params) =>
   api.get('/admin/prescriptions', { ...adminApi(), params });
 
-export const reviewPrescription = (id, status, adminNote) =>
-  api.patch(`/admin/prescriptions/${id}`, { status, adminNote }, adminApi());
+// status: 'approved' | 'rejected' | 'clarification_required' | 'partially_approved'
+export const reviewPrescription = (id, payload) =>
+  api.patch(`/admin/prescriptions/${id}`, payload, adminApi());
+
+// Attach / update medicines after approval (without re-reviewing)
+export const attachMedicines = (id, approvedMedicines, rejectedMedicines) =>
+  api.patch(`/admin/prescriptions/${id}/medicines`, { approvedMedicines, rejectedMedicines }, adminApi());
+
+// Search Rx products to attach to a prescription
+export const searchRxProducts = (q) =>
+  api.get('/admin/prescriptions/products/search', { ...adminApi(), params: { q } });
 
 export const updatePrescriptionDelivery = (id, status) =>
   api.patch(`/admin/prescriptions/${id}/delivery`, { status }, adminApi());

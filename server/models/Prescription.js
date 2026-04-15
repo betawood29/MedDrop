@@ -1,62 +1,75 @@
-// Prescription model — tracks uploaded prescriptions for Rx medicines
-// Status flow: pending → approved/rejected
-// Linked to user; optionally linked to an order after approval
+// Prescription model
+// Status flow: pending → approved | rejected | clarification_required | partially_approved
+// clarification_required allows re-review after user responds
+// approved/partially_approved carry attached medicines, expiry, and reuse logic
 
 const mongoose = require('mongoose');
 
+const approvedMedicineSchema = new mongoose.Schema(
+  {
+    product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+    name: String,      // snapshot
+    price: Number,     // snapshot
+    image: String,     // snapshot
+    quantity: { type: Number, default: 1 },
+  },
+  { _id: false }
+);
+
+const rejectedMedicineSchema = new mongoose.Schema(
+  {
+    name: String,      // medicine name from prescription
+    reason: String,    // why it was not approved
+  },
+  { _id: false }
+);
+
 const prescriptionSchema = new mongoose.Schema(
   {
-    prescriptionId: {
-      type: String,
-      unique: true,
-    },
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    // Cloudinary URL of the uploaded prescription image or PDF
-    fileUrl: {
-      type: String,
-      required: true,
-    },
-    filePublicId: {
-      type: String, // Cloudinary public_id for deletion
-    },
-    fileName: {
-      type: String,
-    },
-    fileType: {
-      type: String, // 'image' | 'pdf'
-    },
-    // Patient note — e.g. "For headache medicine" or doctor name
-    note: {
-      type: String,
-      maxlength: 500,
-    },
+    prescriptionId: { type: String, unique: true },
+
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+
+    // Uploaded file
+    fileUrl: { type: String, required: true },
+    filePublicId: String,
+    fileName: String,
+    fileType: String,  // 'image' | 'pdf'
+
+    // Patient note
+    note: { type: String, maxlength: 500 },
+
+    // ── Status ──────────────────────────────────────────────────────────
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
+      enum: ['pending', 'approved', 'rejected', 'clarification_required', 'partially_approved'],
       default: 'pending',
     },
-    // Admin review fields
-    adminNote: {
-      type: String, // Rejection reason or approval note
-      maxlength: 500,
-    },
-    reviewedAt: {
-      type: Date,
-    },
-    reviewedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Admin',
-    },
-    // Optional: link to order placed using this prescription (marks it as "used")
-    order: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Order',
-    },
-    // Delivery request — when user requests medicines to be delivered via prescription
+
+    // ── Admin review ─────────────────────────────────────────────────────
+    adminNote: { type: String, maxlength: 500 },
+    clarificationMessage: { type: String, maxlength: 1000 },
+    reviewedAt: Date,
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+
+    // Medicines admin attaches on approve / partial-approve
+    approvedMedicines: [approvedMedicineSchema],
+    // Medicines the admin explicitly rejected from the prescription
+    rejectedMedicines: [rejectedMedicineSchema],
+
+    // ── Validity / reusability ────────────────────────────────────────────
+    expiresAt: Date,                              // set 90 days after approval
+    isReusable: { type: Boolean, default: false },
+    usageCount: { type: Number, default: 0 },
+    maxUsage: { type: Number, default: 1 },       // 1 = single-use
+
+    // ── Order linkage ─────────────────────────────────────────────────────
+    // Primary (most recent) order — kept for backward compat
+    order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order' },
+    // All orders placed with this prescription (for reusable Rx)
+    orders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Order' }],
+
+    // ── Legacy delivery request ───────────────────────────────────────────
     deliveryRequest: {
       hostel: String,
       gate: String,
@@ -73,10 +86,7 @@ const prescriptionSchema = new mongoose.Schema(
 );
 
 // Auto-generate prescriptionId
-const counterSchema = new mongoose.Schema({
-  _id: String,
-  seq: { type: Number, default: 0 },
-});
+const counterSchema = new mongoose.Schema({ _id: String, seq: { type: Number, default: 0 } });
 const Counter = mongoose.models.Counter || mongoose.model('Counter', counterSchema);
 
 prescriptionSchema.pre('save', async function (next) {
@@ -89,6 +99,14 @@ prescriptionSchema.pre('save', async function (next) {
     this.prescriptionId = 'RX' + String(counter.seq).padStart(5, '0');
   }
   next();
+});
+
+// Virtual: is this prescription currently valid for ordering?
+prescriptionSchema.virtual('isValid').get(function () {
+  if (!['approved', 'partially_approved'].includes(this.status)) return false;
+  if (this.expiresAt && this.expiresAt < new Date()) return false;
+  if (!this.isReusable && this.usageCount >= this.maxUsage) return false;
+  return true;
 });
 
 prescriptionSchema.index({ user: 1, createdAt: -1 });

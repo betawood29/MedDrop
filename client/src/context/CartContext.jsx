@@ -71,6 +71,7 @@ export const CartProvider = ({ children }) => {
             image: p.image || item.image,
             quantity: item.quantity,
             stockQty: p.stockQty ?? item.stockQty ?? 0,
+            requiresPrescription: p.requiresPrescription ?? item.requiresPrescription ?? false,
           };
         });
 
@@ -140,6 +141,7 @@ export const CartProvider = ({ children }) => {
               image: p.image || item.image,
               quantity: item.quantity,
               stockQty: p.stockQty ?? item.stockQty ?? 0,
+              requiresPrescription: p.requiresPrescription ?? item.requiresPrescription ?? false,
             };
           });
           setItems(normalized);

@@ -42,10 +42,15 @@ export const getDeliveryInfo = () => {
 };
 
 export const PRESCRIPTION_STATUSES = {
-  pending: { label: 'Under Review', color: '#f59e0b', bg: '#fef3c7' },
-  approved: { label: 'Approved', color: '#22c55e', bg: '#dcfce7' },
-  rejected: { label: 'Rejected', color: '#ef4444', bg: '#fee2e2' },
+  pending:                { label: 'Under Review',          color: '#f59e0b', bg: '#fef3c7', step: 1 },
+  approved:               { label: 'Approved',              color: '#22c55e', bg: '#dcfce7', step: 2 },
+  partially_approved:     { label: 'Partially Approved',    color: '#3b82f6', bg: '#eff6ff', step: 2 },
+  rejected:               { label: 'Rejected',              color: '#ef4444', bg: '#fee2e2', step: -1 },
+  clarification_required: { label: 'Clarification Needed',  color: '#8b5cf6', bg: '#f5f3ff', step: 1 },
 };
+
+// Statuses that block cart checkout
+export const RX_BLOCKING_STATUSES = new Set(['none', 'pending', 'rejected', 'clarification_required']);
 
 export const DELIVERY_REQUEST_STATUSES = {
   requested: { label: 'Requested', color: '#f59e0b', bg: '#fef3c7' },

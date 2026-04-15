@@ -28,7 +28,7 @@ const {
   getAdminPrintOrders,
   updatePrintOrderStatus,
 } = require('../controllers/adminController');
-const { getAdminPrescriptions, reviewPrescription, updateDeliveryStatus } = require('../controllers/prescriptionController');
+const { getAdminPrescriptions, reviewPrescription, attachMedicines, searchProducts, updateDeliveryStatus } = require('../controllers/prescriptionController');
 const { uploadExcel, downloadTemplate } = require('../controllers/uploadController');
 const { getBanners, createBanner, updateBanner, deleteBanner, uploadBannerImage } = require('../controllers/bannerController');
 
@@ -89,8 +89,10 @@ router.get('/print-orders', getAdminPrintOrders);
 router.patch('/print-orders/:id', updatePrintOrderStatus);
 
 // Prescription management
-router.get('/prescriptions', getAdminPrescriptions);
-router.patch('/prescriptions/:id', reviewPrescription);
-router.patch('/prescriptions/:id/delivery', updateDeliveryStatus);
+router.get('/prescriptions',                    getAdminPrescriptions);
+router.get('/prescriptions/products/search',    searchProducts);       // search Rx products to attach
+router.patch('/prescriptions/:id',              reviewPrescription);
+router.patch('/prescriptions/:id/medicines',    attachMedicines);
+router.patch('/prescriptions/:id/delivery',     updateDeliveryStatus);
 
 module.exports = router;

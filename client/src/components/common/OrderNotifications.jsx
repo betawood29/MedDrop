@@ -170,13 +170,18 @@ const OrderNotifications = () => {
         return;
       }
 
-      const isApproved  = data.status === 'approved';
-      const icon        = isApproved ? '✅' : '❌';
-      const borderColor = isApproved ? '#22c55e' : '#ef4444';
-      const title       = isApproved ? 'Prescription Approved!' : 'Prescription Rejected';
-      const subtitle    = isApproved
-        ? 'Tap to request delivery or order your medicines.'
-        : data.adminNote ? `Reason: ${data.adminNote}` : 'Please upload a valid prescription.';
+      const STATUS_TOAST = {
+        approved:               { icon: '✅', color: '#22c55e', title: 'Prescription Approved!',           sub: 'Tap to order your medicines.' },
+        partially_approved:     { icon: '✅', color: '#3b82f6', title: 'Prescription Partially Approved',  sub: 'Some medicines approved — tap to fill cart.' },
+        rejected:               { icon: '❌', color: '#ef4444', title: 'Prescription Rejected',            sub: data.adminNote ? `Reason: ${data.adminNote}` : 'Please upload a new prescription.' },
+        clarification_required: { icon: '💬', color: '#8b5cf6', title: 'Clarification Needed',            sub: data.clarificationMessage || 'Our pharmacist needs more info — tap to respond.' },
+      };
+      const info = STATUS_TOAST[data.status];
+      if (!info) return;
+      const icon        = info.icon;
+      const borderColor = info.color;
+      const title       = info.title;
+      const subtitle    = info.sub;
 
       toast(
         (t) => (

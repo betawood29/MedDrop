@@ -5,8 +5,9 @@ const crypto = require('crypto');
 const razorpay = require('../config/razorpay');
 const ApiError = require('../utils/apiError');
 
-// Create a Razorpay order for the given amount
-const createRazorpayOrder = async (amount, orderId) => {
+// Create a Razorpay order for the given amount.
+// authorizeOnly=true → payment_capture:0 (hold funds, capture later) — used for Rx orders
+const createRazorpayOrder = async (amount, orderId, authorizeOnly = false) => {
   if (!razorpay) {
     throw ApiError.badRequest('Payment gateway not configured');
   }
@@ -15,10 +16,8 @@ const createRazorpayOrder = async (amount, orderId) => {
     amount: Math.round(amount * 100), // Razorpay expects amount in paise
     currency: 'INR',
     receipt: orderId,
-    notes: {
-      orderId,
-      app: 'MedDrop',
-    },
+    payment_capture: authorizeOnly ? 0 : 1,
+    notes: { orderId, app: 'MedDrop' },
   };
 
   const order = await razorpay.orders.create(options);
@@ -39,4 +38,10 @@ const verifyPayment = (razorpayOrderId, razorpayPaymentId, razorpaySignature) =>
   return true;
 };
 
-module.exports = { createRazorpayOrder, verifyPayment };
+// Capture an authorized Razorpay payment (used for Rx orders after prescription confirmed)
+const capturePayment = async (paymentId, amount) => {
+  if (!razorpay) throw ApiError.badRequest('Payment gateway not configured');
+  return razorpay.payments.capture(paymentId, Math.round(amount * 100), 'INR');
+};
+
+module.exports = { createRazorpayOrder, verifyPayment, capturePayment };

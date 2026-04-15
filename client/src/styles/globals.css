@@ -2977,10 +2977,11 @@ img { max-width: 100%; display: block; }
 .rx-home-banner {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin: 8px 16px 4px;
-  background: linear-gradient(130deg, #5b21b6 0%, #7c3aed 55%, #6d28d9 100%);
+  width: calc(100% - 32px);
+  background: linear-gradient(130deg, #7c3aed 0%, #8b5cf6 55%, #a78bfa 100%);
   border-radius: var(--radius);
-  padding: 14px 16px; cursor: pointer; width: calc(100% - 32px);
-  box-shadow: 0 4px 16px rgba(124,58,237,0.28);
+  padding: 14px 16px; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(124,58,237,0.18);
   transition: box-shadow var(--transition), transform var(--transition);
   position: relative; overflow: hidden;
 }
@@ -3044,6 +3045,25 @@ img { max-width: 100%; display: block; }
   transition: background var(--transition);
 }
 .cart-rx-upload-btn:hover { background: #1d4ed8; }
+
+/* cart-rx-notice status variants */
+.cart-rx-notice.rx-status-approved { background: #f0fdf4; border-color: #86efac; }
+.cart-rx-notice.rx-status-pending  { background: #fffbeb; border-color: #fde68a; }
+.cart-rx-notice.rx-status-approved .cart-rx-notice-text strong { color: #15803d; }
+.cart-rx-notice.rx-status-approved .cart-rx-notice-text span   { color: #16a34a; }
+.cart-rx-notice.rx-status-pending  .cart-rx-notice-text strong { color: #92400e; }
+.cart-rx-notice.rx-status-pending  .cart-rx-notice-text span   { color: #b45309; }
+.cart-rx-icon-approved  { color: #16a34a !important; }
+.cart-rx-icon-pending   { color: #d97706 !important; }
+.cart-rx-icon-clarify   { color: #7c3aed !important; }
+.cart-rx-icon-rejected  { color: #dc2626 !important; }
+.cart-rx-notice.rx-status-clarify  { background: #faf5ff; border-color: #d8b4fe; }
+.cart-rx-notice.rx-status-rejected { background: #fff1f2; border-color: #fecdd3; }
+.cart-rx-notice.rx-status-clarify  .cart-rx-notice-text strong { color: #6d28d9; }
+.cart-rx-notice.rx-status-clarify  .cart-rx-notice-text span   { color: #7c3aed; }
+.cart-rx-notice.rx-status-rejected .cart-rx-notice-text strong { color: #991b1b; }
+.cart-rx-notice.rx-status-rejected .cart-rx-notice-text span   { color: #dc2626; }
+.cart-rx-blocked-hint { font-size: 0.78rem; color: var(--danger); font-weight: 600; text-align: center; margin-top: 4px; }
 
 /* ── Prescription history card extras ── */
 .rx-delivery-status {
@@ -3140,20 +3160,22 @@ img { max-width: 100%; display: block; }
 .checkout-rx-banner.pending {
   background: #fffbeb; border-color: #fde68a;
 }
-.checkout-rx-banner.blocked {
-  background: #fff1f2; border-color: #fecdd3;
-}
+.checkout-rx-banner.blocked { background: #fff1f2; border-color: #fecdd3; }
+.checkout-rx-banner.clarify { background: #faf5ff; border-color: #d8b4fe; }
 .checkout-rx-icon { flex-shrink: 0; margin-top: 2px; }
 .checkout-rx-banner.approved .checkout-rx-icon { color: #16a34a; }
-.checkout-rx-banner.pending .checkout-rx-icon { color: #d97706; }
-.checkout-rx-banner.blocked .checkout-rx-icon { color: #dc2626; }
+.checkout-rx-banner.pending  .checkout-rx-icon { color: #d97706; }
+.checkout-rx-banner.blocked  .checkout-rx-icon { color: #dc2626; }
+.checkout-rx-banner.clarify  .checkout-rx-icon { color: #7c3aed; }
 .checkout-rx-text { flex: 1; }
 .checkout-rx-banner.approved .checkout-rx-text strong { font-size: 0.88rem; font-weight: 700; color: #15803d; display: block; }
 .checkout-rx-banner.approved .checkout-rx-text p { font-size: 0.78rem; color: #16a34a; margin-top: 3px; }
-.checkout-rx-banner.pending .checkout-rx-text strong { font-size: 0.88rem; font-weight: 700; color: #92400e; display: block; }
-.checkout-rx-banner.pending .checkout-rx-text p { font-size: 0.78rem; color: #b45309; margin-top: 3px; }
-.checkout-rx-banner.blocked .checkout-rx-text strong { font-size: 0.88rem; font-weight: 700; color: #991b1b; display: block; }
-.checkout-rx-banner.blocked .checkout-rx-text p { font-size: 0.78rem; color: #dc2626; margin-top: 3px; }
+.checkout-rx-banner.pending  .checkout-rx-text strong { font-size: 0.88rem; font-weight: 700; color: #92400e; display: block; }
+.checkout-rx-banner.pending  .checkout-rx-text p { font-size: 0.78rem; color: #b45309; margin-top: 3px; }
+.checkout-rx-banner.blocked  .checkout-rx-text strong { font-size: 0.88rem; font-weight: 700; color: #991b1b; display: block; }
+.checkout-rx-banner.blocked  .checkout-rx-text p { font-size: 0.78rem; color: #dc2626; margin-top: 3px; }
+.checkout-rx-banner.clarify  .checkout-rx-text strong { font-size: 0.88rem; font-weight: 700; color: #6d28d9; display: block; }
+.checkout-rx-banner.clarify  .checkout-rx-text p { font-size: 0.78rem; color: #7c3aed; margin-top: 3px; }
 .checkout-rx-btn {
   display: flex; align-items: center; gap: 6px;
   background: #dc2626; color: white;
@@ -3162,6 +3184,15 @@ img { max-width: 100%; display: block; }
   transition: background var(--transition);
 }
 .checkout-rx-btn:hover { background: #b91c1c; }
+/* Authorize-only notice (Rx hold payment) */
+.checkout-rx-authorize-notice {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: #eff6ff; border: 1px solid #bfdbfe;
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.78rem; color: #1e40af; line-height: 1.4;
+}
+.checkout-rx-authorize-notice svg { flex-shrink: 0; margin-top: 1px; color: #2563eb; }
 
 /* ===== ADMIN - Prescriptions page ===== */
 .admin-page-header {
@@ -3302,4 +3333,192 @@ img { max-width: 100%; display: block; }
 .modal-confirm-btn.success:hover:not(:disabled) { background: #15803d; }
 .modal-confirm-btn.danger { background: #dc2626; }
 .modal-confirm-btn.danger:hover:not(:disabled) { background: #b91c1c; }
+.modal-confirm-btn.clarify { background: #7c3aed; }
+.modal-confirm-btn.clarify:hover:not(:disabled) { background: #6d28d9; }
 .modal-confirm-btn:disabled, .modal-cancel-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ===== PRESCRIPTION PAGE — Stepper ===== */
+.rx-history-heading-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.rx-refresh-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); transition: background var(--transition);
+}
+.rx-refresh-btn:hover { background: var(--primary-light); color: var(--primary); }
+
+.rx-history-card { border-radius: var(--radius-sm); background: var(--bg-white); border: 1px solid var(--border-light); overflow: hidden; }
+.rx-history-card-approved { border-color: #86efac; }
+.rx-history-body { display: flex; gap: 0; padding: 10px 12px; }
+
+/* Stepper */
+.rx-stepper {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 10px 14px 0;
+  position: relative;
+}
+.rx-step-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  flex: 1; position: relative;
+}
+.rx-step-item:not(:last-child) { flex-direction: row; align-items: flex-start; }
+.rx-step-circle {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid var(--border); background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700; color: var(--text-muted);
+  flex-shrink: 0; transition: all 0.2s;
+}
+.rx-step-circle.done     { background: #22c55e; border-color: #22c55e; color: white; }
+.rx-step-circle.active   { background: #2563eb; border-color: #2563eb; color: white; }
+.rx-step-circle.clarify  { background: #7c3aed; border-color: #7c3aed; color: white; }
+.rx-step-circle.rejected { background: #ef4444; border-color: #ef4444; color: white; }
+.rx-step-label { font-size: 0.67rem; color: var(--text-muted); white-space: nowrap; margin-top: 2px; }
+.rx-step-label.active { color: var(--primary); font-weight: 700; }
+.rx-step-line {
+  flex: 1; height: 2px; background: var(--border);
+  margin: 11px 4px 0; border-radius: 1px;
+}
+.rx-step-line.done { background: #22c55e; }
+
+/* Prescription history — new layout */
+.rx-history-thumb  { width: 64px; height: 64px; flex-shrink: 0; border-radius: var(--radius-xs); overflow: hidden; background: var(--bg); cursor: pointer; position: relative; }
+.rx-history-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.rx-pdf-thumb { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--primary); }
+.rx-history-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center; color: white;
+  opacity: 0; transition: opacity var(--transition); border-radius: var(--radius-xs);
+}
+.rx-history-thumb:hover .rx-history-overlay { opacity: 1; }
+.rx-history-info { flex: 1; padding: 0 10px; display: flex; flex-direction: column; gap: 3px; }
+.rx-history-id { font-size: 0.8rem; font-weight: 700; color: var(--primary); }
+.rx-history-date { font-size: 0.73rem; color: var(--text-muted); }
+.rx-history-note { font-size: 0.73rem; color: var(--text-secondary); background: var(--bg); border-radius: var(--radius-xs); padding: 3px 6px; }
+.rx-history-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+
+/* Clarification box */
+.rx-clarification-box {
+  display: flex; align-items: flex-start; gap: 6px;
+  background: #faf5ff; border: 1px solid #d8b4fe;
+  border-radius: var(--radius-xs); padding: 6px 8px; margin-top: 4px;
+  font-size: 0.74rem; color: #6d28d9;
+}
+.rx-clarification-box strong { font-size: 0.72rem; display: block; margin-bottom: 2px; }
+.rx-clarification-box p { margin: 0; color: #7c3aed; }
+
+/* Reject reason */
+.rx-reject-reason {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.73rem; color: #dc2626;
+  background: #fff1f2; border-radius: var(--radius-xs); padding: 4px 7px; margin-top: 3px;
+}
+
+/* Expiry / usage */
+.rx-expiry-info {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.72rem; color: #16a34a; margin-top: 3px;
+}
+.rx-expiry-info.expired { color: #dc2626; }
+.rx-usage-badge {
+  background: #eff6ff; color: #1d4ed8; font-size: 0.68rem; font-weight: 700;
+  padding: 1px 7px; border-radius: var(--radius-pill); margin-left: 4px;
+}
+
+/* Approved / rejected medicines pills */
+.rx-approved-meds { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; align-items: center; }
+.rx-approved-meds-label { font-size: 0.68rem; color: var(--text-muted); width: 100%; }
+.rx-rejected-meds  { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.rx-med-pill {
+  font-size: 0.7rem; font-weight: 600; padding: 2px 8px;
+  border-radius: var(--radius-pill); background: #dcfce7; color: #15803d;
+}
+.rx-med-pill.rejected { background: #fee2e2; color: #dc2626; }
+
+/* ===== ADMIN PRESCRIPTIONS — Review modal ===== */
+.admin-rx-review-modal {
+  background: var(--bg-white); border-radius: var(--radius);
+  padding: 20px; max-width: 520px; width: 100%;
+  display: flex; flex-direction: column; gap: 14px;
+  box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto;
+}
+.admin-rx-review-header { display: flex; align-items: flex-start; justify-content: space-between; }
+.admin-rx-action-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-rx-action-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: var(--radius-pill);
+  font-size: 0.78rem; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--bg);
+  color: var(--text-secondary); cursor: pointer;
+  transition: all 0.15s;
+}
+.admin-rx-action-chip:hover { border-color: var(--primary); color: var(--primary); }
+.admin-rx-field { display: flex; flex-direction: column; gap: 6px; }
+.admin-rx-field label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+.admin-rx-field label .req { color: var(--danger); margin-left: 2px; }
+
+/* Medicine search */
+.admin-rx-search-wrap { position: relative; }
+.admin-rx-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.admin-rx-search-input {
+  width: 100%; padding: 8px 10px 8px 32px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 0.83rem; color: var(--text); background: var(--bg);
+}
+.admin-rx-search-input.flex-1 { flex: 1; padding-left: 10px; }
+.admin-rx-search-input:focus { outline: none; border-color: var(--primary); }
+.admin-rx-search-dropdown {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-white); box-shadow: var(--shadow);
+  max-height: 200px; overflow-y: auto; margin-top: 2px;
+}
+.admin-rx-search-loading { padding: 10px 12px; font-size: 0.8rem; color: var(--text-muted); }
+.admin-rx-search-result {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 12px; text-align: left;
+  transition: background var(--transition);
+}
+.admin-rx-search-result:hover { background: var(--bg); }
+.admin-rx-search-img { width: 28px; height: 28px; border-radius: var(--radius-xs); object-fit: cover; }
+.admin-rx-search-name { flex: 1; font-size: 0.82rem; color: var(--text); }
+.admin-rx-search-price { font-size: 0.77rem; color: var(--text-muted); }
+.admin-rx-search-add { color: var(--primary); }
+
+/* Medicine list */
+.admin-rx-meds-list { display: flex; flex-direction: column; gap: 6px; }
+.admin-rx-meds-label { font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); }
+.admin-rx-med-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--bg); border-radius: var(--radius-xs); }
+.admin-rx-med-img { width: 28px; height: 28px; border-radius: var(--radius-xs); object-fit: cover; }
+.admin-rx-med-name { flex: 1; font-size: 0.82rem; color: var(--text); }
+.admin-rx-med-qty {
+  width: 52px; padding: 4px 6px; border: 1px solid var(--border);
+  border-radius: var(--radius-xs); font-size: 0.82rem; text-align: center;
+}
+.admin-rx-med-remove { color: var(--text-muted); padding: 4px; transition: color var(--transition); }
+.admin-rx-med-remove:hover { color: var(--danger); }
+
+/* Reusable section */
+.admin-rx-reusable-row { flex-direction: row; align-items: center; gap: 10px; }
+.admin-rx-toggle { color: var(--text-muted); transition: color var(--transition); }
+.admin-rx-toggle .toggle-on { color: var(--primary); }
+.admin-rx-maxusage { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); margin-left: auto; }
+
+/* Rejected medicines input */
+.admin-rx-rejected-input-row { display: flex; gap: 6px; align-items: center; }
+.admin-rx-add-rejected-btn {
+  width: 32px; height: 32px; border-radius: var(--radius-xs);
+  background: var(--primary); color: white;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background var(--transition);
+}
+.admin-rx-add-rejected-btn:hover { background: var(--primary-dark); }
+.admin-rx-rejected-list { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.admin-rx-rejected-row { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: #fff1f2; border-radius: var(--radius-xs); }
+.admin-rx-rejected-reason { font-size: 0.72rem; color: var(--text-muted); margin-left: 4px; }
+.text-danger { color: var(--danger); }
+
+/* Admin card extras */
+.admin-rx-meds-preview { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.admin-rx-med-chip { font-size: 0.7rem; padding: 2px 7px; border-radius: var(--radius-pill); background: #dcfce7; color: #15803d; font-weight: 600; }
+.admin-rx-clarify-note { display: flex; align-items: flex-start; gap: 5px; font-size: 0.74rem; color: #6d28d9; background: #faf5ff; border-radius: var(--radius-xs); padding: 5px 7px; }
+.admin-rx-reuse-badge { font-size: 0.72rem; color: #1d4ed8; background: #eff6ff; padding: 2px 8px; border-radius: var(--radius-pill); display: inline-block; margin-top: 4px; }

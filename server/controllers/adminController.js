@@ -287,6 +287,19 @@ const updateOrderStatus = async (req, res, next) => {
       order.paymentStatus = 'refunded';
     }
 
+    // Capture authorized Rx-order payment when admin confirms the order
+    if (status === 'confirmed' && order.requiresCapture && order.paymentStatus === 'authorized' && order.razorpayPaymentId) {
+      try {
+        const { capturePayment } = require('../services/paymentService');
+        await capturePayment(order.razorpayPaymentId, order.total);
+        order.paymentStatus = 'paid';
+        order.requiresCapture = false;
+      } catch (captureErr) {
+        // Log but don't block the status update — admin can retry or handle manually
+        console.error('[Razorpay capture failed]', captureErr.message);
+      }
+    }
+
     await order.save();
 
     // Emit real-time update to customer (both order-specific and user-specific rooms)
