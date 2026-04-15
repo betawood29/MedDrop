@@ -231,7 +231,7 @@ const PrescriptionPage = () => {
         <div className="rx-consult-section">
           <p className="rx-consult-heading">Don&apos;t have a prescription?</p>
           <div className="rx-consult-cards">
-            <a href="tel:+911234567890" className="rx-consult-card">
+            <a href="tel:+919914866244" className="rx-consult-card">
               <div className="rx-consult-icon phone"><PhoneCall size={22} /></div>
               <div className="rx-consult-info">
                 <span className="rx-consult-title">Call Pharmacist</span>
