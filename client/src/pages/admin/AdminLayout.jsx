@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { LayoutDashboard, ShoppingBag, Package, Upload, FolderTree, Image, LogOut, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Package, Upload, FolderTree, Image, LogOut } from 'lucide-react';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import Loader from '../../components/common/Loader';
 import { useAuth } from '../../hooks/useAuth';
@@ -88,7 +88,6 @@ const AdminLayout = () => {
         <NavLink to="/admin/upload" className={({ isActive }) => isActive ? 'active' : ''}><Upload size={16} /> Upload</NavLink>
         <NavLink to="/admin/categories" className={({ isActive }) => isActive ? 'active' : ''}><FolderTree size={16} /> Categories</NavLink>
         <NavLink to="/admin/banner" className={({ isActive }) => isActive ? 'active' : ''}><Image size={16} /> Banner</NavLink>
-        <NavLink to="/admin/feedback" className={({ isActive }) => isActive ? 'active' : ''}><MessageSquare size={16} /> Feedback</NavLink>
         <button onClick={handleLogout}><LogOut size={16} /> Logout</button>
       </div>
       <main className="admin-content">

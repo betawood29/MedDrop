@@ -37,17 +37,15 @@ initSocket(server);
 
 // --- Middleware ---
 const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
-const isDev = process.env.NODE_ENV !== 'production';
-
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow requests with no origin (curl, Postman, mobile apps in dev)
-    if (!origin) return cb(null, true);
-    // In development allow any localhost origin regardless of port (Vite picks 5173, 5174, 5175…)
-    if (isDev && /^http:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true);
+    // In production, require an origin header; in dev, allow no-origin requests (curl, Postman)
+    if (process.env.NODE_ENV !== 'production' && !origin) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error('Not allowed by CORS'));
   },
