@@ -8,6 +8,7 @@ const {
   getMyPrescriptions,
   getPrescription,
   deletePrescription,
+  requestDelivery,
 } = require('../controllers/prescriptionController');
 
 router.use(protect);
@@ -16,5 +17,6 @@ router.post('/', prescriptionUpload.single('prescription'), uploadPrescription);
 router.get('/', getMyPrescriptions);
 router.get('/:id', getPrescription);
 router.delete('/:id', deletePrescription);
+router.post('/:id/request-delivery', requestDelivery);
 
 module.exports = router;

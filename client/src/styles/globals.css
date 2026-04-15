@@ -2700,7 +2700,6 @@ img { max-width: 100%; display: block; }
   padding: 16px 16px 12px;
   background: var(--bg-white);
   border-bottom: 1px solid var(--border-light);
-  position: sticky; top: calc(var(--nav-height) + 28px); z-index: 10;
 }
 .rx-back-btn {
   width: 36px; height: 36px; border-radius: 50%;
@@ -2974,6 +2973,139 @@ img { max-width: 100%; display: block; }
 }
 .rx-pdf-open-btn:hover { background: var(--primary-dark); }
 
+/* ===== HOME - Prescription banner ===== */
+.rx-home-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 8px 16px 4px;
+  background: linear-gradient(130deg, #5b21b6 0%, #7c3aed 55%, #6d28d9 100%);
+  border-radius: var(--radius);
+  padding: 14px 16px; cursor: pointer; width: calc(100% - 32px);
+  box-shadow: 0 4px 16px rgba(124,58,237,0.28);
+  transition: box-shadow var(--transition), transform var(--transition);
+  position: relative; overflow: hidden;
+}
+.rx-home-banner::before {
+  content: ''; position: absolute;
+  top: -24px; right: -24px;
+  width: 100px; height: 100px;
+  background: rgba(255,255,255,0.07); border-radius: 50%;
+}
+.rx-home-banner::after {
+  content: ''; position: absolute;
+  bottom: -30px; right: 60px;
+  width: 80px; height: 80px;
+  background: rgba(255,255,255,0.05); border-radius: 50%;
+}
+.rx-home-banner:hover { box-shadow: 0 6px 22px rgba(124,58,237,0.38); transform: translateY(-1px); }
+.rx-home-banner:active { transform: translateY(0); }
+.rx-home-banner-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.rx-home-banner-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: rgba(255,255,255,0.18); color: white;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.rx-home-banner-text { text-align: left; min-width: 0; }
+.rx-home-banner-text strong { display: block; font-size: 0.92rem; font-weight: 700; color: white; }
+.rx-home-banner-text span { font-size: 0.76rem; color: rgba(255,255,255,0.78); margin-top: 2px; display: block; }
+.rx-home-banner-cta {
+  display: flex; align-items: center; gap: 3px;
+  background: rgba(255,255,255,0.18); color: white;
+  padding: 7px 12px; border-radius: var(--radius-pill);
+  font-size: 0.78rem; font-weight: 700; flex-shrink: 0; white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.25);
+  transition: background var(--transition);
+  position: relative; z-index: 1;
+}
+.rx-home-banner:hover .rx-home-banner-cta { background: rgba(255,255,255,0.26); }
+
+/* ===== CART - Prescription notice ===== */
+.cart-rx-notice {
+  margin: 0 0 12px;
+  background: #eff6ff; border: 1px solid #bfdbfe;
+  border-radius: var(--radius-sm); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cart-rx-notice-top { display: flex; align-items: flex-start; gap: 10px; }
+.cart-rx-icon { color: #2563eb; flex-shrink: 0; margin-top: 2px; }
+.cart-rx-notice-text { flex: 1; }
+.cart-rx-notice-text strong { display: block; font-size: 0.88rem; font-weight: 700; color: #1e40af; }
+.cart-rx-notice-text span { font-size: 0.77rem; color: #3b82f6; margin-top: 2px; display: block; }
+.cart-rx-medicines { display: flex; flex-wrap: wrap; gap: 6px; }
+.cart-rx-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: white; border: 1px solid #bfdbfe; border-radius: var(--radius-pill);
+  padding: 3px 10px; font-size: 0.73rem; font-weight: 600; color: #1e40af;
+}
+.cart-rx-upload-btn {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  background: #2563eb; color: white;
+  border-radius: var(--radius-sm); padding: 10px;
+  font-size: 0.85rem; font-weight: 700;
+  transition: background var(--transition);
+}
+.cart-rx-upload-btn:hover { background: #1d4ed8; }
+
+/* ── Prescription history card extras ── */
+.rx-delivery-status {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.72rem; font-weight: 600; padding: 3px 8px;
+  border-radius: var(--radius-pill); margin-top: 4px;
+}
+.rx-used-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.71rem; color: var(--text-muted); margin-top: 4px;
+}
+.rx-delivery-btn {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--primary); color: white;
+  border-radius: var(--radius-xs); padding: 6px 10px;
+  font-size: 0.75rem; font-weight: 700;
+  transition: background var(--transition);
+}
+.rx-delivery-btn:hover { background: var(--primary-dark); }
+
+/* ── Delivery request modal ── */
+.rx-dlv-modal-header {
+  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 4px;
+}
+.rx-dlv-modal-icon {
+  width: 44px; height: 44px; border-radius: var(--radius-sm);
+  background: var(--primary-light); color: var(--primary);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.rx-dlv-close {
+  color: var(--text-muted); margin-left: auto; flex-shrink: 0;
+  transition: color var(--transition);
+}
+.rx-dlv-close:hover { color: var(--text); }
+
+/* ── Admin delivery block ── */
+.admin-rx-delivery-block {
+  margin-top: 8px; padding: 8px 10px;
+  background: #f0fdf4; border: 1px solid #bbf7d0;
+  border-radius: var(--radius-xs);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.admin-rx-delivery-header {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.77rem; font-weight: 700; color: #15803d;
+}
+.admin-rx-delivery-loc {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 0.74rem; color: var(--text-secondary);
+}
+.admin-rx-delivery-note { font-size: 0.72rem; color: var(--text-muted); }
+.admin-rx-delivery-actions { display: flex; gap: 6px; margin-top: 4px; }
+.admin-rx-dlv-btn {
+  flex: 1; padding: 6px 8px; border-radius: var(--radius-xs);
+  font-size: 0.75rem; font-weight: 700;
+  transition: opacity var(--transition);
+}
+.admin-rx-dlv-btn:hover { opacity: 0.85; }
+.admin-rx-dlv-btn.preparing { background: #dbeafe; color: #1d4ed8; }
+.admin-rx-dlv-btn.out       { background: #ffedd5; color: #c2410c; }
+.admin-rx-dlv-btn.delivered { background: #dcfce7; color: #15803d; }
+
 /* ===== PDP - Prescription banner ===== */
 .pdp-rx-banner {
   display: flex; align-items: flex-start; gap: 12px;
@@ -2997,22 +3129,39 @@ img { max-width: 100%; display: block; }
 /* ===== CHECKOUT - Prescription warning ===== */
 .checkout-rx-banner {
   display: flex; align-items: flex-start; gap: 12px;
-  background: #fffbeb; border: 1px solid #fde68a;
   border-radius: var(--radius-sm); padding: 14px;
   margin-bottom: 16px;
+  /* default = blocked (no prescription) */
+  background: #fffbeb; border: 1px solid #fde68a;
 }
-.checkout-rx-icon { color: #d97706; flex-shrink: 0; margin-top: 2px; }
+.checkout-rx-banner.approved {
+  background: #f0fdf4; border-color: #86efac;
+}
+.checkout-rx-banner.pending {
+  background: #fffbeb; border-color: #fde68a;
+}
+.checkout-rx-banner.blocked {
+  background: #fff1f2; border-color: #fecdd3;
+}
+.checkout-rx-icon { flex-shrink: 0; margin-top: 2px; }
+.checkout-rx-banner.approved .checkout-rx-icon { color: #16a34a; }
+.checkout-rx-banner.pending .checkout-rx-icon { color: #d97706; }
+.checkout-rx-banner.blocked .checkout-rx-icon { color: #dc2626; }
 .checkout-rx-text { flex: 1; }
-.checkout-rx-text strong { font-size: 0.88rem; font-weight: 700; color: #92400e; display: block; }
-.checkout-rx-text p { font-size: 0.78rem; color: #b45309; margin-top: 3px; }
+.checkout-rx-banner.approved .checkout-rx-text strong { font-size: 0.88rem; font-weight: 700; color: #15803d; display: block; }
+.checkout-rx-banner.approved .checkout-rx-text p { font-size: 0.78rem; color: #16a34a; margin-top: 3px; }
+.checkout-rx-banner.pending .checkout-rx-text strong { font-size: 0.88rem; font-weight: 700; color: #92400e; display: block; }
+.checkout-rx-banner.pending .checkout-rx-text p { font-size: 0.78rem; color: #b45309; margin-top: 3px; }
+.checkout-rx-banner.blocked .checkout-rx-text strong { font-size: 0.88rem; font-weight: 700; color: #991b1b; display: block; }
+.checkout-rx-banner.blocked .checkout-rx-text p { font-size: 0.78rem; color: #dc2626; margin-top: 3px; }
 .checkout-rx-btn {
   display: flex; align-items: center; gap: 6px;
-  background: #d97706; color: white;
+  background: #dc2626; color: white;
   padding: 8px 13px; border-radius: var(--radius-sm);
   font-size: 0.8rem; font-weight: 700; flex-shrink: 0; white-space: nowrap;
   transition: background var(--transition);
 }
-.checkout-rx-btn:hover { background: #b45309; }
+.checkout-rx-btn:hover { background: #b91c1c; }
 
 /* ===== ADMIN - Prescriptions page ===== */
 .admin-page-header {

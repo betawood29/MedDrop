@@ -51,10 +51,22 @@ const prescriptionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Admin',
     },
-    // Optional: link to order placed using this prescription
+    // Optional: link to order placed using this prescription (marks it as "used")
     order: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Order',
+    },
+    // Delivery request — when user requests medicines to be delivered via prescription
+    deliveryRequest: {
+      hostel: String,
+      gate: String,
+      note: String,
+      status: {
+        type: String,
+        enum: ['requested', 'preparing', 'out', 'delivered'],
+        default: 'requested',
+      },
+      requestedAt: { type: Date, default: Date.now },
     },
   },
   { timestamps: true }

@@ -3,6 +3,7 @@
 
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const Prescription = require('../models/Prescription');
 const { createRazorpayOrder, verifyPayment } = require('../services/paymentService');
 const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
@@ -122,7 +123,26 @@ const verifyAndCreateOrder = async (req, res, next) => {
       }
     }
 
-    // Step 3: Create the order (payment already verified)
+    // Step 3: Check if any items require prescription — verify an unused approved Rx exists
+    const requiresRx = await Promise.all(
+      items.map((item) => Product.findById(item.product).select('requiresPrescription'))
+    );
+    const hasRxItems = requiresRx.some((p) => p?.requiresPrescription);
+
+    if (hasRxItems) {
+      const validRx = await Prescription.findOne({
+        user: req.user._id,
+        status: 'approved',
+        order: { $exists: false },
+        'deliveryRequest.hostel': { $exists: false },
+      }).sort({ createdAt: -1 });
+
+      if (!validRx) {
+        throw ApiError.badRequest('A verified prescription is required to order prescription medicines. Please upload one on the prescription page.');
+      }
+    }
+
+    // Step 4: Create the order (payment already verified)
     const deliveryFee = subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE;
     const total = subtotal + deliveryFee;
 
@@ -140,6 +160,22 @@ const verifyAndCreateOrder = async (req, res, next) => {
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,
     });
+
+    // Link prescription to this order so it can't be reused
+    if (hasRxItems) {
+      try {
+        await Prescription.findOneAndUpdate(
+          {
+            user: req.user._id,
+            status: 'approved',
+            order: { $exists: false },
+            'deliveryRequest.hostel': { $exists: false },
+          },
+          { order: order._id },
+          { sort: { createdAt: -1 } }
+        );
+      } catch (_) {}
+    }
 
     // Emit to admin
     try {

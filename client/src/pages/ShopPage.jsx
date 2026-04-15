@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, FileText, ChevronRight } from 'lucide-react';
 import HeroBanner from '../components/shop/HeroBanner';
 import QuickActions from '../components/shop/QuickActions';
 import CategoryGrid from '../components/shop/CategoryGrid';
@@ -71,6 +71,23 @@ const ShopPage = () => {
     <div className="shop-page">
       <HeroBanner />
       <QuickActions />
+
+      {/* Prescription upload banner */}
+      <button className="rx-home-banner" onClick={() => navigate('/prescription')}>
+        <div className="rx-home-banner-left">
+          <div className="rx-home-banner-icon">
+            <FileText size={20} />
+          </div>
+          <div className="rx-home-banner-text">
+            <strong>Have a prescription?</strong>
+            <span>Upload it &amp; we'll arrange your medicines</span>
+          </div>
+        </div>
+        <span className="rx-home-banner-cta">
+          Upload Now <ChevronRight size={14} />
+        </span>
+      </button>
+
       <CategoryGrid categories={categories} categoriesWithSubs={categoriesWithSubs} />
 
       {/* Deals Banner */}

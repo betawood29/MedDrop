@@ -114,6 +114,46 @@ const deletePrescription = async (req, res, next) => {
   }
 };
 
+// POST /api/prescriptions/:id/request-delivery — user requests medicine delivery on an approved Rx
+const requestDelivery = async (req, res, next) => {
+  try {
+    const { hostel, gate, note } = req.body;
+    if (!hostel || !gate) throw ApiError.badRequest('Hostel and gate are required');
+
+    const prescription = await Prescription.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+    if (!prescription) throw ApiError.notFound('Prescription not found');
+    if (prescription.status !== 'approved') {
+      throw ApiError.badRequest('Only approved prescriptions can request delivery');
+    }
+    if (prescription.order) {
+      throw ApiError.badRequest('This prescription is already linked to an order');
+    }
+    if (prescription.deliveryRequest?.hostel) {
+      throw ApiError.badRequest('Delivery has already been requested for this prescription');
+    }
+
+    prescription.deliveryRequest = { hostel, gate, note: note || '', status: 'requested', requestedAt: new Date() };
+    await prescription.save();
+
+    // Notify admin
+    const { getIO } = require('../config/socket');
+    try {
+      getIO().to('admin').emit('new-prescription', {
+        type: 'delivery',
+        prescriptionId: prescription.prescriptionId,
+        userName: req.user.name || req.user.phone,
+      });
+    } catch (_) {}
+
+    ApiResponse.success(res, prescription, 'Delivery requested! We will arrange your medicines.');
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ===================== ADMIN =====================
 
 // GET /api/admin/prescriptions — list all prescriptions with filters
@@ -182,11 +222,52 @@ const reviewPrescription = async (req, res, next) => {
   }
 };
 
+// PATCH /api/admin/prescriptions/:id/delivery — admin updates delivery request status
+const updateDeliveryStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['preparing', 'out', 'delivered'];
+    if (!allowed.includes(status)) {
+      throw ApiError.badRequest('Status must be preparing, out, or delivered');
+    }
+
+    const prescription = await Prescription.findById(req.params.id).populate('user', '_id name phone');
+    if (!prescription) throw ApiError.notFound('Prescription not found');
+    if (!prescription.deliveryRequest?.hostel) {
+      throw ApiError.badRequest('No delivery request found for this prescription');
+    }
+
+    prescription.deliveryRequest.status = status;
+    await prescription.save();
+
+    // Notify user
+    const { getIO } = require('../config/socket');
+    const DELIVERY_STATUS_LABELS = {
+      preparing: 'Medicines being prepared',
+      out: 'Out for delivery',
+      delivered: 'Delivered',
+    };
+    try {
+      getIO().to(`user_${prescription.user._id}`).emit('prescription-update', {
+        prescriptionId: prescription.prescriptionId,
+        status: 'delivery_' + status,
+        adminNote: DELIVERY_STATUS_LABELS[status],
+      });
+    } catch (_) {}
+
+    ApiResponse.success(res, prescription, `Delivery status updated to ${status}`);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   uploadPrescription,
   getMyPrescriptions,
   getPrescription,
   deletePrescription,
+  requestDelivery,
   getAdminPrescriptions,
   reviewPrescription,
+  updateDeliveryStatus,
 };

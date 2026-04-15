@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, Upload } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Upload, CheckCircle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CartSummary from '../components/cart/CartSummary';
 import DeliveryForm from '../components/cart/DeliveryForm';
@@ -12,15 +12,40 @@ import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
 import { initiatePayment, verifyAndCreateOrder } from '../services/orderService';
 import { createPrintOrder } from '../services/printService';
+import { getMyPrescriptions } from '../services/prescriptionService';
 
 const CheckoutPage = () => {
   const { items, printOrder, getPrintOrderWithFiles, clearAll, hasAnything } = useCart();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [rxStatus, setRxStatus] = useState(null); // null | 'approved' | 'pending' | 'none'
   const navigate = useNavigate();
 
   // Check if any cart item requires a prescription
   const hasRxItems = items.some((i) => i.requiresPrescription);
+
+  // If cart has Rx items, check if user has a valid prescription
+  useEffect(() => {
+    if (!hasRxItems || !user) return;
+    getMyPrescriptions()
+      .then((res) => {
+        const prescriptions = res.data.data || [];
+        // "unused" = approved, not linked to any previous order, no delivery request
+        const hasUnusedApproved = prescriptions.some(
+          (p) => p.status === 'approved' && !p.order && !p.deliveryRequest?.hostel
+        );
+        const hasPending = prescriptions.some((p) => p.status === 'pending');
+
+        if (hasUnusedApproved) {
+          setRxStatus('approved');
+        } else if (hasPending) {
+          setRxStatus('pending');
+        } else {
+          setRxStatus('none');
+        }
+      })
+      .catch(() => setRxStatus('none'));
+  }, [hasRxItems, user]);
 
   const openRazorpay = (razorpayOrderId, amount, keyId) => {
     return new Promise((resolve, reject) => {
@@ -142,13 +167,31 @@ const CheckoutPage = () => {
         <h2 className="page-title">Checkout</h2>
       </div>
 
-      {/* Prescription reminder for Rx items */}
-      {hasRxItems && (
-        <div className="checkout-rx-banner">
+      {/* Prescription status banner for Rx items */}
+      {hasRxItems && rxStatus === 'approved' && (
+        <div className="checkout-rx-banner approved">
+          <CheckCircle size={18} className="checkout-rx-icon" />
+          <div className="checkout-rx-text">
+            <strong>Prescription Verified</strong>
+            <p>Your prescription has been approved. You can proceed with the order.</p>
+          </div>
+        </div>
+      )}
+      {hasRxItems && rxStatus === 'pending' && (
+        <div className="checkout-rx-banner pending">
+          <Clock size={18} className="checkout-rx-icon" />
+          <div className="checkout-rx-text">
+            <strong>Prescription Under Review</strong>
+            <p>Your prescription is being reviewed by our pharmacist. You can place the order now — it will only be dispatched after approval.</p>
+          </div>
+        </div>
+      )}
+      {hasRxItems && rxStatus === 'none' && (
+        <div className="checkout-rx-banner blocked">
           <ShieldCheck size={18} className="checkout-rx-icon" />
           <div className="checkout-rx-text">
             <strong>Prescription Required</strong>
-            <p>Your cart contains prescription medicines. Please upload a valid prescription before placing the order — it will be verified before delivery.</p>
+            <p>Your cart has prescription medicines. Upload a prescription to proceed.</p>
           </div>
           <button className="checkout-rx-btn" onClick={() => navigate('/prescription')}>
             <Upload size={14} /> Upload Rx
@@ -158,7 +201,11 @@ const CheckoutPage = () => {
 
       <div className="checkout-layout">
         <div className="checkout-left">
-          <DeliveryForm onSubmit={handlePlaceOrder} loading={loading} />
+          <DeliveryForm
+            onSubmit={handlePlaceOrder}
+            loading={loading}
+            disabled={hasRxItems && rxStatus === 'none'}
+          />
         </div>
 
         <div className="checkout-right">

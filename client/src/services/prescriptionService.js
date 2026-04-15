@@ -15,3 +15,6 @@ export const getPrescription = (id) =>
 
 export const deletePrescription = (id) =>
   api.delete(`/prescriptions/${id}`);
+
+export const requestDelivery = (id, data) =>
+  api.post(`/prescriptions/${id}/request-delivery`, data);

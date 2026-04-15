@@ -2,7 +2,7 @@
 // Desktop: side-by-side layout (items left, summary right)
 
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, ArrowLeft, CalendarClock, Printer, X } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, CalendarClock, Printer, X, ShieldCheck, Upload, CheckCircle } from 'lucide-react';
 import CartItem from '../components/cart/CartItem';
 import CartSummary from '../components/cart/CartSummary';
 import { useCart } from '../hooks/useCart';
@@ -14,6 +14,9 @@ const CartPage = () => {
   const { items, clearCart, itemCount, printOrder, clearPrintOrder, hasAnything } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const rxItems = items.filter((i) => i.requiresPrescription);
+  const hasRxItems = rxItems.length > 0;
 
   if (!hasAnything) {
     return (
@@ -44,6 +47,29 @@ const CartPage = () => {
         </button>
         <h2 className="page-title">My Cart</h2>
       </div>
+
+      {/* Prescription required notice */}
+      {hasRxItems && user && (
+        <div className="cart-rx-notice">
+          <div className="cart-rx-notice-top">
+            <ShieldCheck size={18} className="cart-rx-icon" />
+            <div className="cart-rx-notice-text">
+              <strong>Prescription required for {rxItems.length} item{rxItems.length > 1 ? 's' : ''}</strong>
+              <span>Upload one prescription for all Rx medicines in your cart</span>
+            </div>
+          </div>
+          <div className="cart-rx-medicines">
+            {rxItems.map((i) => (
+              <span key={i.product} className="cart-rx-pill">
+                <CheckCircle size={11} /> {i.name}
+              </span>
+            ))}
+          </div>
+          <button className="cart-rx-upload-btn" onClick={() => navigate('/prescription')}>
+            <Upload size={15} /> Upload Prescription
+          </button>
+        </div>
+      )}
 
       {/* Delivery info strip */}
       <div className="cart-delivery-strip">

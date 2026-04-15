@@ -5,7 +5,7 @@ import { CalendarClock } from 'lucide-react';
 import { GATE_OPTIONS, HOSTEL_OPTIONS, getDeliveryInfo } from '../../utils/constants';
 import { useAuth } from '../../hooks/useAuth';
 
-const DeliveryForm = ({ onSubmit, loading }) => {
+const DeliveryForm = ({ onSubmit, loading, disabled }) => {
   const { user } = useAuth();
   const [hostel, setHostel] = useState(user?.hostel || '');
   const [gate, setGate] = useState(user?.preferredGate || '');
@@ -52,7 +52,7 @@ const DeliveryForm = ({ onSubmit, loading }) => {
         <span>Same-day delivery — Order before 4 PM, get it by 6–7 PM</span>
       </div>
 
-      <button type="submit" className="btn-primary" disabled={loading}>
+      <button type="submit" className="btn-primary" disabled={loading || disabled}>
         {loading ? 'Processing...' : `Place Order & Pay — Delivery ${getDeliveryInfo().label}`}
       </button>
     </form>

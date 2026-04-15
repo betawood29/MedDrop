@@ -47,6 +47,13 @@ export const PRESCRIPTION_STATUSES = {
   rejected: { label: 'Rejected', color: '#ef4444', bg: '#fee2e2' },
 };
 
+export const DELIVERY_REQUEST_STATUSES = {
+  requested: { label: 'Requested', color: '#f59e0b', bg: '#fef3c7' },
+  preparing: { label: 'Preparing', color: '#3b82f6', bg: '#eff6ff' },
+  out: { label: 'Out for Delivery', color: '#f97316', bg: '#fff7ed' },
+  delivered: { label: 'Delivered', color: '#22c55e', bg: '#dcfce7' },
+};
+
 export const HOSTEL_OPTIONS = [
   'Hostel 1', 'Hostel 2', 'Hostel 3', 'Hostel 4', 'Hostel 5',
   'Hostel 6', 'Hostel 7', 'Hostel 8', 'Hostel 9', 'Hostel 10',

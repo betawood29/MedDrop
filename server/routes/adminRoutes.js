@@ -28,7 +28,7 @@ const {
   getAdminPrintOrders,
   updatePrintOrderStatus,
 } = require('../controllers/adminController');
-const { getAdminPrescriptions, reviewPrescription } = require('../controllers/prescriptionController');
+const { getAdminPrescriptions, reviewPrescription, updateDeliveryStatus } = require('../controllers/prescriptionController');
 const { uploadExcel, downloadTemplate } = require('../controllers/uploadController');
 const { getBanners, createBanner, updateBanner, deleteBanner, uploadBannerImage } = require('../controllers/bannerController');
 
@@ -91,5 +91,6 @@ router.patch('/print-orders/:id', updatePrintOrderStatus);
 // Prescription management
 router.get('/prescriptions', getAdminPrescriptions);
 router.patch('/prescriptions/:id', reviewPrescription);
+router.patch('/prescriptions/:id/delivery', updateDeliveryStatus);
 
 module.exports = router;

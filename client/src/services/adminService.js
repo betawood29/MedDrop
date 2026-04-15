@@ -110,3 +110,6 @@ export const getAdminPrescriptions = (params) =>
 
 export const reviewPrescription = (id, status, adminNote) =>
   api.patch(`/admin/prescriptions/${id}`, { status, adminNote }, adminApi());
+
+export const updatePrescriptionDelivery = (id, status) =>
+  api.patch(`/admin/prescriptions/${id}/delivery`, { status }, adminApi());
