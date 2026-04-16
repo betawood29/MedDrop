@@ -21,7 +21,7 @@ const Navbar = () => {
       <nav className="navbar">
         <div className="navbar-left">
           <Link to="/" className="navbar-brand">
-            <span className="brand-icon">💊</span>
+            <img src="/MEddrop.png" alt="MedDrop" className="brand-logo" />
             <div className="brand-info">
               <span className="brand-text">MedDrop</span>
               {user?.hostel && (

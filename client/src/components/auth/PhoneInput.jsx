@@ -21,7 +21,7 @@ const PhoneInput = ({ onSubmit, loading }) => {
   return (
     <form onSubmit={handleSubmit} className="auth-form">
       <div className="auth-header">
-        <span className="auth-icon">💊</span>
+        <img src="/MEddrop.png" alt="MedDrop" className="auth-logo" />
         <h1>MedDrop</h1>
         <p>Chitkara University Gate Delivery</p>
       </div>

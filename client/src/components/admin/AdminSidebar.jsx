@@ -44,7 +44,8 @@ const AdminSidebar = ({ onLogout }) => {
   return (
     <aside className="admin-sidebar">
       <div className="admin-sidebar-brand">
-        <span>💊</span> MedDrop Admin
+        <img src="/MEddrop.png" alt="MedDrop" className="admin-brand-logo" />
+        MedDrop Admin
       </div>
       <nav className="admin-nav">
         <NavLink to="/admin" end className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
