@@ -115,20 +115,24 @@ img { max-width: 100%; display: block; }
 .brand-text { color: var(--primary); line-height: 1.2; letter-spacing: -0.02em; }
 .brand-location { font-size: 0.65rem; font-weight: 500; display: flex; align-items: center; gap: 2px; color: var(--text-secondary); }
 .navbar-actions { display: flex; align-items: center; gap: 6px; }
-.navbar .icon-btn { color: var(--text-secondary); }
+.navbar .icon-btn { color: var(--text-secondary);}
 .navbar .icon-btn:hover { background: var(--primary-light); color: var(--primary); }
 .navbar .btn-sm { background: var(--primary); color: white; border: none; border-radius: var(--radius-sm); }
 .navbar .btn-sm:hover { background: var(--primary-dark); }
 
-/* Navbar search pill */
+/* Navbar search pill — hidden on mobile, shown on 481px+ */
 .navbar-search {
+  display: none;
   flex: 1; max-width: 280px; margin: 0 12px;
-  display: flex; align-items: center; gap: 8px;
+  align-items: center; gap: 8px;
   background: var(--bg); border-radius: var(--radius-pill);
   padding: 8px 14px; cursor: pointer;
   transition: all 0.2s; border: 1px solid var(--border);
 }
 .navbar-search:hover { background: var(--primary-light); border-color: var(--primary); }
+
+/* Mobile search icon button — shown only on mobile */
+.navbar-search-mobile { display: flex;}
 
 /* Desktop nav links (hidden on mobile) */
 .navbar-desktop-links { display: none; }
@@ -2265,7 +2269,8 @@ img { max-width: 100%; display: block; }
   .hero-banner { margin: 10px 20px 0; }
 
   /* Search bar in navbar grows */
-  .navbar-search { max-width: 340px; }
+  .navbar-search { display: flex; max-width: 340px; }
+  .navbar-search-mobile { display: none; }
   .navbar { padding: 0 20px; }
 
   /* Cart bar */

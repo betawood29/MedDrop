@@ -33,7 +33,7 @@ const Navbar = () => {
           </Link>
         </div>
 
-        {/* Tappable search bar in center */}
+        {/* Tablet+: full search pill */}
         <div className="navbar-search" onClick={() => setShowSearch(true)}>
           <Search size={15} />
           <span>Search products...</span>
@@ -55,6 +55,10 @@ const Navbar = () => {
         </div>
 
         <div className="navbar-actions">
+          {/* Mobile: icon-only search button */}
+          <button className="navbar-search-mobile icon-btn" onClick={() => setShowSearch(true)} aria-label="Search">
+            <Search size={22} />
+          </button>
           <button className="icon-btn" onClick={() => navigate('/cart')} aria-label="Cart">
             <ShoppingCart size={22} />
             {badgeCount > 0 && <span className="badge">{badgeCount}</span>}
