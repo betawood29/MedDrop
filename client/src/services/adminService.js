@@ -42,6 +42,9 @@ export const patchProduct = (id, data) =>
 export const deleteProduct = (id) =>
   api.delete(`/admin/products/${id}`, adminApi());
 
+export const bulkDeleteProducts = (ids, all = false) =>
+  api.delete('/admin/products/bulk', { ...adminApi(), data: { ids, all } });
+
 export const uploadProductImage = (formData) =>
   api.post('/admin/products/upload-image', formData, {
     ...adminApi(),

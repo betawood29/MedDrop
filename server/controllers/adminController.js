@@ -512,6 +512,24 @@ const deleteProduct = async (req, res, next) => {
   }
 };
 
+// DELETE /api/admin/products/bulk — soft delete multiple or all
+const bulkDeleteProducts = async (req, res, next) => {
+  try {
+    const { ids, all } = req.body;
+    if (all === true) {
+      const result = await Product.updateMany({}, { isActive: false });
+      ApiResponse.success(res, { count: result.modifiedCount }, 'All products deleted');
+    } else if (Array.isArray(ids) && ids.length > 0) {
+      const result = await Product.updateMany({ _id: { $in: ids } }, { isActive: false });
+      ApiResponse.success(res, { count: result.modifiedCount }, `${result.modifiedCount} products deleted`);
+    } else {
+      throw ApiError.badRequest('Provide an ids array or all: true');
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
 // --- Category CRUD ---
 
 // GET /api/admin/categories — all categories including inactive
@@ -763,6 +781,7 @@ module.exports = {
   updateProduct,
   patchProduct,
   deleteProduct,
+  bulkDeleteProducts,
   getAdminCategories,
   toggleCategory,
   createCategory,

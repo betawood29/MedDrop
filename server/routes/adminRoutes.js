@@ -14,6 +14,7 @@ const {
   updateProduct,
   patchProduct,
   deleteProduct,
+  bulkDeleteProducts,
   getAdminCategories,
   toggleCategory,
   createCategory,
@@ -55,6 +56,7 @@ router.post('/products/upload-image', imageUpload.single('image'), uploadProduct
 // Product management
 router.get('/products', getAdminProducts);
 router.post('/products', createProduct);
+router.delete('/products/bulk', bulkDeleteProducts); // must be before /:id
 router.put('/products/:id', updateProduct);
 router.patch('/products/:id', patchProduct);
 router.delete('/products/:id', deleteProduct);

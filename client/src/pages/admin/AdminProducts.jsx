@@ -1,14 +1,13 @@
-// Admin products page — full product CRUD with search
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, Search, Package } from 'lucide-react';
-import ProductTable from '../../components/admin/ProductTable';
+import { Plus, Search, Package, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import ProductTable, { ProductTableSkeleton } from '../../components/admin/ProductTable';
 import ProductForm from '../../components/admin/ProductForm';
-import Loader from '../../components/common/Loader';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import { getAdminProducts, createProduct, updateProduct, patchProduct, deleteProduct, getAdminCategories } from '../../services/adminService';
+import { getAdminProducts, createProduct, updateProduct, patchProduct, deleteProduct, bulkDeleteProducts, getAdminCategories } from '../../services/adminService';
 import { useAdminSocket } from '../../hooks/useSocket';
+
+const PAGE_LIMIT = 20;
 
 const AdminProducts = () => {
   const [products, setProducts] = useState([]);
@@ -17,36 +16,68 @@ const AdminProducts = () => {
   const [formLoading, setFormLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
-  const [search, setSearch] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
 
-  // Initial load + search — only shows loader on first load
-  const fetchProducts = async (showLoader = false) => {
+  // Search with debounce
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [selectAllProducts, setSelectAllProducts] = useState(false); // select across all pages
+
+  // Confirm modals
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+
+  const fetchProducts = useCallback(async (pg = page, showLoader = true) => {
     if (showLoader) setLoading(true);
     try {
-      const params = search ? { search } : {};
+      const params = { page: pg, limit: PAGE_LIMIT };
+      if (debouncedSearch) params.search = debouncedSearch;
       const [prodRes, catRes] = await Promise.all([
         getAdminProducts(params),
         getAdminCategories(),
       ]);
       setProducts(prodRes.data.data);
+      setTotalPages(prodRes.data.pagination?.pages || 1);
+      setTotalCount(prodRes.data.pagination?.total || 0);
       setCategories(catRes.data.data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load products');
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, page]);
 
-  useEffect(() => { fetchProducts(true); }, [search]);
+  // Reset to page 1 when search changes
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
+    setPage(1);
+    setSelectedIds(new Set());
+    setSelectAllProducts(false);
+  }, [debouncedSearch]);
 
-  // Real-time: when any product is updated (from another admin tab, or from user order)
+  // Fetch when page changes (also covers initial load)
+  useEffect(() => {
+    fetchProducts(page, true);
+  }, [page, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Real-time socket updates
   const handleSocketProductUpdate = useCallback((updated) => {
     setProducts((prev) =>
       prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p))
     );
   }, []);
-
   useAdminSocket(null, handleSocketProductUpdate);
 
   const handleCreate = async (data) => {
@@ -55,7 +86,7 @@ const AdminProducts = () => {
       await createProduct(data);
       toast.success('Product created!');
       setShowForm(false);
-      fetchProducts();
+      fetchProducts(page, false);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create');
     } finally {
@@ -70,8 +101,7 @@ const AdminProducts = () => {
       toast.success('Product updated!');
       setEditProduct(null);
       setShowForm(false);
-      // Socket will handle the live update, but also refresh for full data
-      fetchProducts();
+      fetchProducts(page, false);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update');
     } finally {
@@ -79,9 +109,7 @@ const AdminProducts = () => {
     }
   };
 
-  const handleDelete = (id) => {
-    setDeleteConfirm({ open: true, id });
-  };
+  const handleDelete = (id) => setDeleteConfirm({ open: true, id });
 
   const confirmDelete = async () => {
     const id = deleteConfirm.id;
@@ -89,29 +117,71 @@ const AdminProducts = () => {
     try {
       await deleteProduct(id);
       toast.success('Product deleted');
-      // Remove from local state directly — backend soft-deletes so re-fetching would bring it back
       setProducts((prev) => prev.filter((p) => p._id !== id));
-    } catch (err) {
+      setSelectedIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+      setTotalCount((c) => c - 1);
+    } catch {
       toast.error('Failed to delete');
     }
   };
 
   const handleToggleStock = async (id, inStock) => {
-    // Optimistic update — flip immediately in UI
-    setProducts((prev) =>
-      prev.map((p) => (p._id === id ? { ...p, inStock } : p))
-    );
+    setProducts((prev) => prev.map((p) => (p._id === id ? { ...p, inStock } : p)));
     try {
       await patchProduct(id, { inStock });
-      // Socket will push the confirmed state back
-    } catch (err) {
-      // Revert on failure
-      setProducts((prev) =>
-        prev.map((p) => (p._id === id ? { ...p, inStock: !inStock } : p))
-      );
+    } catch {
+      setProducts((prev) => prev.map((p) => (p._id === id ? { ...p, inStock: !inStock } : p)));
       toast.error('Failed to update stock');
     }
   };
+
+  // Selection handlers
+  const handleToggleSelect = (id) => {
+    setSelectAllProducts(false);
+    setSelectedIds((prev) => {
+      const s = new Set(prev);
+      s.has(id) ? s.delete(id) : s.add(id);
+      return s;
+    });
+  };
+
+  const handleSelectAll = (ids) => {
+    setSelectAllProducts(false);
+    setSelectedIds(new Set(ids));
+  };
+
+  const handleBulkDelete = () => setBulkConfirm(true);
+
+  const confirmBulkDelete = async () => {
+    setBulkConfirm(false);
+    const isAll = selectAllProducts;
+    const ids = isAll ? [] : [...selectedIds];
+    try {
+      await bulkDeleteProducts(ids, isAll);
+      const count = isAll ? totalCount : ids.length;
+      toast.success(`${count} product${count !== 1 ? 's' : ''} deleted`);
+      setSelectedIds(new Set());
+      setSelectAllProducts(false);
+      // If deleting all on current page and not the last page, go to page 1
+      if (isAll) {
+        setPage(1);
+        setTotalCount(0);
+        setProducts([]);
+      } else {
+        setProducts((prev) => prev.filter((p) => !ids.includes(p._id)));
+        setTotalCount((c) => c - ids.length);
+      }
+    } catch {
+      toast.error('Bulk delete failed');
+    }
+  };
+
+  const selectedCount = selectAllProducts ? totalCount : selectedIds.size;
+  const allOnPageSelected = products.length > 0 && products.every((p) => selectedIds.has(p._id));
+
+  const bulkConfirmMessage = selectAllProducts
+    ? `All ${totalCount} products will be permanently removed from the store.`
+    : `${selectedIds.size} selected product${selectedIds.size !== 1 ? 's' : ''} will be removed from the store.`;
 
   return (
     <div className="admin-page">
@@ -119,7 +189,7 @@ const AdminProducts = () => {
         <div className="admin-products-title">
           <Package size={22} />
           <h2>Products</h2>
-          <span className="admin-count-badge">{products.length}</span>
+          <span className="admin-count-badge">{totalCount || products.length}</span>
         </div>
         <button className="btn-add-product" onClick={() => { setEditProduct(null); setShowForm(true); }}>
           <Plus size={16} /> Add Product
@@ -136,13 +206,87 @@ const AdminProducts = () => {
         />
       </div>
 
-      {loading ? <Loader /> : (
+      {/* Bulk action bar */}
+      {selectedCount > 0 && (
+        <div className="bulk-action-bar">
+          <span className="bulk-action-label">
+            {selectAllProducts ? `All ${totalCount} products selected` : `${selectedIds.size} selected`}
+          </span>
+          {allOnPageSelected && !selectAllProducts && totalCount > products.length && (
+            <button className="bulk-select-all-btn" onClick={() => setSelectAllProducts(true)}>
+              Select all {totalCount} products
+            </button>
+          )}
+          {selectAllProducts && (
+            <button className="bulk-select-all-btn" onClick={() => { setSelectAllProducts(false); setSelectedIds(new Set()); }}>
+              Clear selection
+            </button>
+          )}
+          <button className="bulk-delete-btn" onClick={handleBulkDelete}>
+            <Trash2 size={14} /> Delete {selectedCount > 1 ? `(${selectedCount})` : ''}
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <ProductTableSkeleton />
+      ) : (
         <ProductTable
           products={products}
           onEdit={(p) => { setEditProduct(p); setShowForm(true); }}
           onDelete={handleDelete}
           onToggleStock={handleToggleStock}
+          selectedIds={selectedIds}
+          onToggleSelect={handleToggleSelect}
+          onSelectAll={handleSelectAll}
         />
+      )}
+
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="product-pagination">
+          <span className="pagination-info">
+            {(page - 1) * PAGE_LIMIT + 1}–{Math.min(page * PAGE_LIMIT, totalCount)} of {totalCount}
+          </span>
+          <div className="pagination-controls">
+            <button
+              className="pagination-btn"
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+              aria-label="Previous page"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+              .reduce((acc, p, idx, arr) => {
+                if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) =>
+                p === '…' ? (
+                  <span key={`ellipsis-${i}`} className="pagination-ellipsis">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    className={`pagination-btn${p === page ? ' active' : ''}`}
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+            <button
+              className="pagination-btn"
+              disabled={page === totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              aria-label="Next page"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
       )}
 
       {showForm && (
@@ -162,6 +306,15 @@ const AdminProducts = () => {
         confirmText="Delete"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteConfirm({ open: false, id: null })}
+      />
+
+      <ConfirmModal
+        isOpen={bulkConfirm}
+        title={selectAllProducts ? 'Delete All Products' : `Delete ${selectedIds.size} Products`}
+        message={bulkConfirmMessage}
+        confirmText="Delete"
+        onConfirm={confirmBulkDelete}
+        onCancel={() => setBulkConfirm(false)}
       />
     </div>
   );
