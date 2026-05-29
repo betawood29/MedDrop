@@ -6,6 +6,7 @@ import { Plus, Search, Package } from 'lucide-react';
 import ProductTable from '../../components/admin/ProductTable';
 import ProductForm from '../../components/admin/ProductForm';
 import Loader from '../../components/common/Loader';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import { getAdminProducts, createProduct, updateProduct, patchProduct, deleteProduct, getAdminCategories } from '../../services/adminService';
 import { useAdminSocket } from '../../hooks/useSocket';
 
@@ -17,6 +18,7 @@ const AdminProducts = () => {
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [search, setSearch] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
 
   // Initial load + search — only shows loader on first load
   const fetchProducts = async (showLoader = false) => {
@@ -77,12 +79,18 @@ const AdminProducts = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this product?')) return;
+  const handleDelete = (id) => {
+    setDeleteConfirm({ open: true, id });
+  };
+
+  const confirmDelete = async () => {
+    const id = deleteConfirm.id;
+    setDeleteConfirm({ open: false, id: null });
     try {
       await deleteProduct(id);
       toast.success('Product deleted');
-      fetchProducts();
+      // Remove from local state directly — backend soft-deletes so re-fetching would bring it back
+      setProducts((prev) => prev.filter((p) => p._id !== id));
     } catch (err) {
       toast.error('Failed to delete');
     }
@@ -146,6 +154,15 @@ const AdminProducts = () => {
           loading={formLoading}
         />
       )}
+
+      <ConfirmModal
+        isOpen={deleteConfirm.open}
+        title="Delete Product"
+        message="This product will be removed from the store. This action cannot be undone."
+        confirmText="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm({ open: false, id: null })}
+      />
     </div>
   );
 };

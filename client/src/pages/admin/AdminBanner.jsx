@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Plus, Edit2, Trash2, Upload, Check, X, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Loader from '../../components/common/Loader';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import { getBanners, createBanner, updateBanner, deleteBanner, uploadBannerImage } from '../../services/bannerService';
 
 const emptyForm = {
@@ -23,6 +24,7 @@ const AdminBanner = () => {
   const [form, setForm] = useState(emptyForm);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
   const fileRef = useRef(null);
 
   const fetchBanners = async () => {
@@ -107,8 +109,13 @@ const AdminBanner = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this banner?')) return;
+  const handleDelete = (id) => {
+    setDeleteConfirm({ open: true, id });
+  };
+
+  const confirmDelete = async () => {
+    const id = deleteConfirm.id;
+    setDeleteConfirm({ open: false, id: null });
     try {
       await deleteBanner(id);
       toast.success('Banner deleted');
@@ -282,6 +289,15 @@ const AdminBanner = () => {
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={deleteConfirm.open}
+        title="Delete Banner"
+        message="This banner will be permanently removed. This action cannot be undone."
+        confirmText="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm({ open: false, id: null })}
+      />
     </div>
   );
 };

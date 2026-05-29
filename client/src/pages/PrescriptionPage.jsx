@@ -13,6 +13,7 @@ import {
   uploadPrescription, reuploadPrescription, getMyPrescriptions, deletePrescription,
 } from '../services/prescriptionService';
 import { useCart } from '../hooks/useCart';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 // ── stepper config ────────────────────────────────────────────────────────────
 const STEPS = [
@@ -57,6 +58,7 @@ const PrescriptionPage = () => {
   const [viewingRx,       setViewingRx]       = useState(null);
   // When set, upload replaces this prescription instead of creating a new one
   const [reuploadTarget,  setReuploadTarget]  = useState(null); // { id, prescriptionId, reason }
+  const [deleteConfirm,   setDeleteConfirm]   = useState({ open: false, id: null });
 
   const fetchPrescriptions = useCallback(async () => {
     try {
@@ -116,8 +118,13 @@ const PrescriptionPage = () => {
     uploadCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this prescription?')) return;
+  const handleDelete = (id) => {
+    setDeleteConfirm({ open: true, id });
+  };
+
+  const confirmDelete = async () => {
+    const id = deleteConfirm.id;
+    setDeleteConfirm({ open: false, id: null });
     try {
       await deletePrescription(id);
       toast.success('Prescription deleted');
@@ -503,6 +510,15 @@ const PrescriptionPage = () => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={deleteConfirm.open}
+        title="Delete Prescription"
+        message="This prescription will be permanently removed."
+        confirmText="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm({ open: false, id: null })}
+      />
     </div>
   );
 };

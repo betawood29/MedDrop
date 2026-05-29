@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import CategoryManager from '../../components/admin/CategoryManager';
 import SubCategoryManager from '../../components/admin/SubCategoryManager';
 import Loader from '../../components/common/Loader';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import {
   getAdminCategories, createCategory, updateCategory, deleteCategory, toggleCategory,
   getAdminSubCategories, createSubCategory, updateSubCategory, deleteSubCategory,
@@ -14,6 +15,7 @@ const AdminCategories = () => {
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null, type: null });
 
   const fetchCategories = async () => {
     try {
@@ -71,15 +73,8 @@ const AdminCategories = () => {
     }
   };
 
-  const handleDeleteCat = async (id) => {
-    if (!window.confirm('Delete this category?')) return;
-    try {
-      await deleteCategory(id);
-      toast.success('Category deleted');
-      fetchCategories();
-    } catch (err) {
-      toast.error('Failed to delete');
-    }
+  const handleDeleteCat = (id) => {
+    setDeleteConfirm({ open: true, id, type: 'category' });
   };
 
   // SubCategory handlers
@@ -103,12 +98,23 @@ const AdminCategories = () => {
     }
   };
 
-  const handleDeleteSub = async (id) => {
-    if (!window.confirm('Delete this sub-category?')) return;
+  const handleDeleteSub = (id) => {
+    setDeleteConfirm({ open: true, id, type: 'subcategory' });
+  };
+
+  const confirmDelete = async () => {
+    const { id, type } = deleteConfirm;
+    setDeleteConfirm({ open: false, id: null, type: null });
     try {
-      await deleteSubCategory(id);
-      toast.success('Sub-category deleted');
-      fetchSubCategories();
+      if (type === 'category') {
+        await deleteCategory(id);
+        toast.success('Category deleted');
+        fetchCategories();
+      } else {
+        await deleteSubCategory(id);
+        toast.success('Sub-category deleted');
+        fetchSubCategories();
+      }
     } catch (err) {
       toast.error('Failed to delete');
     }
@@ -131,6 +137,15 @@ const AdminCategories = () => {
         onCreate={handleCreateSub}
         onUpdate={handleUpdateSub}
         onDelete={handleDeleteSub}
+      />
+
+      <ConfirmModal
+        isOpen={deleteConfirm.open}
+        title={deleteConfirm.type === 'category' ? 'Delete Category' : 'Delete Sub-category'}
+        message="This item will be deactivated and hidden from the store."
+        confirmText="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm({ open: false, id: null, type: null })}
       />
     </div>
   );
