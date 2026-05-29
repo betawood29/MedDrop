@@ -1,9 +1,10 @@
 // Excel parser service — parses .xlsx/.xls product upload files using SheetJS
-// Validates rows, matches/creates categories, and upserts products
+// Validates rows, matches/creates categories and subcategories, and upserts products
 
 const XLSX = require('xlsx');
 const fs = require('fs');
 const Category = require('../models/Category');
+const SubCategory = require('../models/SubCategory');
 const Product = require('../models/Product');
 
 // Parse an uploaded Excel file and return product data with validation
@@ -22,12 +23,17 @@ const parseProductExcel = async (filePath) => {
 
   const results = { added: 0, updated: 0, errors: [] };
 
-  // Cache categories to avoid repeated DB lookups
-  const categoryCache = new Map();
+  // Cache categories and subcategories to avoid repeated DB lookups
+  const categoryCache = new Map(); // name.toLowerCase() → Category doc
+  const subCategoryCache = new Map(); // `${categoryId}:${name.toLowerCase()}` → SubCategory doc
+
   const existingCategories = await Category.find();
-  existingCategories.forEach((cat) => {
-    categoryCache.set(cat.name.toLowerCase(), cat);
-  });
+  existingCategories.forEach((cat) => categoryCache.set(cat.name.toLowerCase(), cat));
+
+  const existingSubs = await SubCategory.find();
+  existingSubs.forEach((sub) =>
+    subCategoryCache.set(`${sub.parentCategory}:${sub.name.toLowerCase()}`, sub)
+  );
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -51,8 +57,27 @@ const parseProductExcel = async (filePath) => {
       let category = categoryCache.get(categoryName.toLowerCase());
 
       if (!category) {
-        category = await Category.create({ name: categoryName, slug: categoryName.toLowerCase().replace(/[^a-z0-9]+/g, '-') });
+        category = await Category.create({
+          name: categoryName,
+          slug: categoryName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        });
         categoryCache.set(categoryName.toLowerCase(), category);
+      }
+
+      // Find or create subcategory (optional — only if column provided and non-empty)
+      let subCategoryId = null;
+      const subCategoryName = row.subCategory ? String(row.subCategory).trim() : '';
+      if (subCategoryName) {
+        const cacheKey = `${category._id}:${subCategoryName.toLowerCase()}`;
+        let sub = subCategoryCache.get(cacheKey);
+        if (!sub) {
+          sub = await SubCategory.create({
+            name: subCategoryName,
+            parentCategory: category._id,
+          });
+          subCategoryCache.set(cacheKey, sub);
+        }
+        subCategoryId = sub._id;
       }
 
       // Build product data from row
@@ -69,6 +94,10 @@ const parseProductExcel = async (filePath) => {
         tags: row.tags ? String(row.tags).split(',').map((t) => t.trim()).filter(Boolean) : [],
         isActive: true,
       };
+
+      if (subCategoryId) {
+        productData.subCategory = subCategoryId;
+      }
 
       // Upsert: update if exists (by name), create if not
       const existing = await Product.findOne({ name: productData.name });
@@ -90,15 +119,81 @@ const parseProductExcel = async (filePath) => {
 // Generate a sample Excel template for product uploads
 const generateSampleExcel = () => {
   const sampleData = [
-    { name: 'Dolo 650mg', description: 'Strip of 15 tablets', price: 30, mrp: 35, category: 'Medicines', image: 'https://example.com/dolo.jpg', inStock: 'Yes', stockQty: 100, requiresPrescription: 'No', tags: 'fever,pain relief' },
-    { name: 'Lays Classic', description: '52g pack', price: 20, mrp: 20, category: 'Snacks', image: '', inStock: 'Yes', stockQty: 50, requiresPrescription: 'No', tags: 'chips,snack' },
-    { name: 'Crocin Advance', description: 'Strip of 20 tablets', price: 25, mrp: 30, category: 'Medicines', image: 'https://example.com/crocin.jpg', inStock: 'Yes', stockQty: 80, requiresPrescription: 'No', tags: 'fever,headache' },
-    { name: 'Notebook A4', description: '200 pages ruled', price: 45, mrp: 50, category: 'Stationery', image: '', inStock: 'Yes', stockQty: 30, requiresPrescription: 'No', tags: 'notebook,writing' },
+    {
+      name: 'Dolo 650mg',
+      description: 'Strip of 15 tablets',
+      price: 30,
+      mrp: 35,
+      category: 'Medicines',
+      subCategory: 'Prescription Medicines',
+      image: 'https://example.com/dolo.jpg',
+      inStock: 'Yes',
+      stockQty: 100,
+      requiresPrescription: 'No',
+      tags: 'fever,pain relief',
+    },
+    {
+      name: 'Lays Classic',
+      description: '52g pack',
+      price: 20,
+      mrp: 20,
+      category: 'Snacks',
+      subCategory: '',
+      image: '',
+      inStock: 'Yes',
+      stockQty: 50,
+      requiresPrescription: 'No',
+      tags: 'chips,snack',
+    },
+    {
+      name: 'Crocin Advance',
+      description: 'Strip of 20 tablets',
+      price: 25,
+      mrp: 30,
+      category: 'Medicines',
+      subCategory: 'OTC Medicines',
+      image: 'https://example.com/crocin.jpg',
+      inStock: 'Yes',
+      stockQty: 80,
+      requiresPrescription: 'No',
+      tags: 'fever,headache',
+    },
+    {
+      name: 'Notebook A4',
+      description: '200 pages ruled',
+      price: 45,
+      mrp: 50,
+      category: 'Stationery',
+      subCategory: '',
+      image: '',
+      inStock: 'Yes',
+      stockQty: 30,
+      requiresPrescription: 'No',
+      tags: 'notebook,writing',
+    },
   ];
 
   const worksheet = XLSX.utils.json_to_sheet(sampleData);
+
+  // Add a note row explaining optional fields
+  const noteSheet = XLSX.utils.aoa_to_sheet([
+    ['Field', 'Required', 'Notes'],
+    ['name', 'Yes', 'Product name — used for upsert matching'],
+    ['price', 'Yes', 'Selling price (number)'],
+    ['category', 'Yes', 'Category name — auto-created if it does not exist'],
+    ['subCategory', 'No', 'Sub-category name under the category — auto-created if it does not exist; leave blank to skip'],
+    ['description', 'No', 'Short product description'],
+    ['mrp', 'No', 'Maximum retail price (number)'],
+    ['image', 'No', 'Full image URL'],
+    ['inStock', 'No', 'Yes / No (default: Yes)'],
+    ['stockQty', 'No', 'Quantity available (number, default: 0)'],
+    ['requiresPrescription', 'No', 'Yes / No (default: No)'],
+    ['tags', 'No', 'Comma-separated tags, e.g. "fever,pain relief"'],
+  ]);
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Products');
+  XLSX.utils.book_append_sheet(workbook, noteSheet, 'Field Reference');
   return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 };
 

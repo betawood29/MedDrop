@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const SubCategory = require('../models/SubCategory');
 const Admin = require('../models/Admin');
 const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
@@ -586,11 +587,20 @@ const updateCategory = async (req, res, next) => {
   }
 };
 
-// DELETE /api/admin/categories/:id
+// DELETE /api/admin/categories/:id — hard delete + cascade subcategories + unlink products
 const deleteCategory = async (req, res, next) => {
   try {
-    const category = await Category.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    const category = await Category.findByIdAndDelete(req.params.id);
     if (!category) throw ApiError.notFound('Category not found');
+
+    // Remove all subcategories under this category
+    await SubCategory.deleteMany({ parentCategory: req.params.id });
+
+    // Unset category and subCategory on products that referenced this category
+    await Product.updateMany(
+      { category: req.params.id },
+      { $unset: { category: '', subCategory: '' } }
+    );
 
     ApiResponse.success(res, null, 'Category deleted');
   } catch (err) {
@@ -654,7 +664,6 @@ const uploadCategoryImage = async (req, res, next) => {
 };
 
 // --- SubCategory CRUD ---
-const SubCategory = require('../models/SubCategory');
 
 // GET /api/admin/subcategories
 const getAdminSubCategories = async (req, res, next) => {
@@ -698,12 +707,19 @@ const updateSubCategory = async (req, res, next) => {
   }
 };
 
-// DELETE /api/admin/subcategories/:id
+// DELETE /api/admin/subcategories/:id — hard delete + unlink products
 const deleteSubCategory = async (req, res, next) => {
   try {
-    const sub = await SubCategory.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    const sub = await SubCategory.findByIdAndDelete(req.params.id);
     if (!sub) throw ApiError.notFound('SubCategory not found');
-    ApiResponse.success(res, null, 'SubCategory deleted');
+
+    // Unset subCategory on products that referenced this sub-category
+    await Product.updateMany(
+      { subCategory: req.params.id },
+      { $unset: { subCategory: '' } }
+    );
+
+    ApiResponse.success(res, null, 'Sub-category deleted');
   } catch (err) {
     next(err);
   }
