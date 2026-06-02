@@ -41,6 +41,7 @@ const ProductCard = ({ product }) => {
       <div className="product-info">
         <div className="product-delivery-time">{getDeliveryInfo().label}</div>
         <h3 className="product-name" onClick={goToProduct} style={{ cursor: 'pointer' }}>{product.name}</h3>
+        {product.qty && <p className="product-qty">{product.qty}</p>}
         <p className="product-desc">{product.description}</p>
 
         <div className="product-bottom">

@@ -8,7 +8,7 @@ import { uploadProductImage, getAdminSubCategories } from '../../services/adminS
 const ProductForm = ({ product, categories, onSubmit, onClose, loading }) => {
   const [form, setForm] = useState({
     name: '', description: '', price: '', mrp: '', category: '', subCategory: '',
-    inStock: true, stockQty: 0, requiresPrescription: false, tags: '', image: '',
+    inStock: true, stockQty: 0, qty: '', requiresPrescription: false, tags: '', image: '',
   });
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState('');
@@ -27,6 +27,7 @@ const ProductForm = ({ product, categories, onSubmit, onClose, loading }) => {
         subCategory: product.subCategory?._id || product.subCategory || '',
         inStock: product.inStock ?? true,
         stockQty: product.stockQty || 0,
+        qty: product.qty || '',
         requiresPrescription: product.requiresPrescription || false,
         tags: (product.tags || []).join(', '),
         image: product.image || '',
@@ -166,6 +167,9 @@ const ProductForm = ({ product, categories, onSubmit, onClose, loading }) => {
 
           <label className="input-label">Name *</label>
           <input className="input" value={form.name} onChange={(e) => update('name', e.target.value)} required />
+
+          <label className="input-label">Qty / Unit</label>
+          <input className="input" value={form.qty} onChange={(e) => update('qty', e.target.value)} placeholder="e.g. 1 ltr, 500g, 200ml, 1 pkt" />
 
           <label className="input-label">Description</label>
           <input className="input" value={form.description} onChange={(e) => update('description', e.target.value)} />

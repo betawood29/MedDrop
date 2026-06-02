@@ -47,6 +47,10 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    qty: {
+      type: String,
+      trim: true,
+    },
     tags: [String],
     isActive: {
       type: Boolean,

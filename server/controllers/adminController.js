@@ -347,7 +347,7 @@ const updateOrderStatus = async (req, res, next) => {
 const getAdminProducts = async (req, res, next) => {
   try {
     const { search, category, page = 1, limit = 50 } = req.query;
-    const query = {};
+    const query = { isActive: true };
 
     if (search) {
       const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -501,10 +501,10 @@ const patchProduct = async (req, res, next) => {
   }
 };
 
-// DELETE /api/admin/products/:id — soft delete
+// DELETE /api/admin/products/:id
 const deleteProduct = async (req, res, next) => {
   try {
-    const product = await Product.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) throw ApiError.notFound('Product not found');
 
     ApiResponse.success(res, null, 'Product deleted');
@@ -513,16 +513,16 @@ const deleteProduct = async (req, res, next) => {
   }
 };
 
-// DELETE /api/admin/products/bulk — soft delete multiple or all
+// DELETE /api/admin/products/bulk
 const bulkDeleteProducts = async (req, res, next) => {
   try {
     const { ids, all } = req.body;
     if (all === true) {
-      const result = await Product.updateMany({}, { isActive: false });
-      ApiResponse.success(res, { count: result.modifiedCount }, 'All products deleted');
+      const result = await Product.deleteMany({});
+      ApiResponse.success(res, { count: result.deletedCount }, 'All products deleted');
     } else if (Array.isArray(ids) && ids.length > 0) {
-      const result = await Product.updateMany({ _id: { $in: ids } }, { isActive: false });
-      ApiResponse.success(res, { count: result.modifiedCount }, `${result.modifiedCount} products deleted`);
+      const result = await Product.deleteMany({ _id: { $in: ids } });
+      ApiResponse.success(res, { count: result.deletedCount }, `${result.deletedCount} products deleted`);
     } else {
       throw ApiError.badRequest('Provide an ids array or all: true');
     }

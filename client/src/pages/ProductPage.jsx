@@ -110,6 +110,7 @@ const ProductPage = () => {
         </div>
 
         <h1 className="pdp-name">{product.name}</h1>
+        {product.qty && <p className="pdp-qty">{product.qty}</p>}
 
         {product.description && (
           <p className="pdp-description">{product.description}</p>

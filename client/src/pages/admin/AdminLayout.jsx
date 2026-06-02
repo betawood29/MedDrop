@@ -14,6 +14,14 @@ const AdminLayout = () => {
   const [loading, setLoading] = useState(true);
   const [loginForm, setLoginForm] = useState({ phone: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('adminSidebarCollapsed') === 'true');
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      localStorage.setItem('adminSidebarCollapsed', String(!prev));
+      return !prev;
+    });
+  };
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -79,7 +87,7 @@ const AdminLayout = () => {
 
   return (
     <div className="admin-layout">
-      <AdminSidebar onLogout={handleLogout} />
+      <AdminSidebar onLogout={handleLogout} collapsed={sidebarCollapsed} onToggle={handleToggleSidebar} />
       {/* Mobile admin top tabs (visible only on mobile when sidebar is hidden) */}
       <div className="admin-mobile-nav">
         <NavLink to="/admin" end className={({ isActive }) => isActive ? 'active' : ''}><LayoutDashboard size={16} /> Dashboard</NavLink>
@@ -90,7 +98,7 @@ const AdminLayout = () => {
         <NavLink to="/admin/banner" className={({ isActive }) => isActive ? 'active' : ''}><Image size={16} /> Banner</NavLink>
         <button onClick={handleLogout}><LogOut size={16} /> Logout</button>
       </div>
-      <main className="admin-content">
+      <main className={`admin-content${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
         <Outlet />
       </main>
     </div>

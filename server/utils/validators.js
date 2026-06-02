@@ -52,6 +52,7 @@ const productSchema = Joi.object({
   inStock: Joi.boolean(),
   stockQty: Joi.number().integer().min(0),
   requiresPrescription: Joi.boolean(),
+  qty: Joi.string().allow('', null),
   tags: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   isActive: Joi.boolean(),
 });
