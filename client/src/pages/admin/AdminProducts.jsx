@@ -25,6 +25,9 @@ const AdminProducts = () => {
     return () => clearTimeout(t);
   }, [search]);
 
+  // Category filter
+  const [categoryFilter, setCategoryFilter] = useState('');
+
   // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -43,6 +46,7 @@ const AdminProducts = () => {
     try {
       const params = { page: pg, limit: PAGE_LIMIT };
       if (debouncedSearch) params.search = debouncedSearch;
+      if (categoryFilter) params.category = categoryFilter;
       const [prodRes, catRes] = await Promise.all([
         getAdminProducts(params),
         getAdminCategories(),
@@ -56,21 +60,21 @@ const AdminProducts = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page]);
+  }, [debouncedSearch, categoryFilter, page]);
 
-  // Reset to page 1 when search changes
+  // Reset to page 1 when search or category filter changes
   const mounted = useRef(false);
   useEffect(() => {
     if (!mounted.current) { mounted.current = true; return; }
     setPage(1);
     setSelectedIds(new Set());
     setSelectAllProducts(false);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, categoryFilter]);
 
   // Fetch when page changes (also covers initial load)
   useEffect(() => {
     fetchProducts(page, true);
-  }, [page, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, debouncedSearch, categoryFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Real-time socket updates
   const handleSocketProductUpdate = useCallback((updated) => {
@@ -197,13 +201,26 @@ const AdminProducts = () => {
       </div>
 
       <div className="admin-search-bar">
-        <Search size={16} className="admin-search-icon" />
-        <input
-          className="admin-search-input"
-          placeholder="Search products..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="admin-search-input-wrap">
+          <Search size={16} className="admin-search-icon" />
+          <input
+            className="admin-search-input"
+            placeholder="Search products..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select
+          className="admin-category-filter"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          aria-label="Filter by category"
+        >
+          <option value="">All Categories</option>
+          {categories.map((c) => (
+            <option key={c._id} value={c._id}>{c.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Bulk action bar */}

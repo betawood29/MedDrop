@@ -1839,7 +1839,10 @@ img { max-width: 100%; display: block; }
 .btn-add-product:active { transform: translateY(0); }
 
 .admin-search-bar {
-  position: relative; margin-bottom: 16px; max-width: 320px;
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.admin-search-input-wrap {
+  position: relative; width: 100%; max-width: 320px;
 }
 .admin-search-icon {
   position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
@@ -1851,6 +1854,12 @@ img { max-width: 100%; display: block; }
   transition: border-color 0.2s;
 }
 .admin-search-input:focus { border-color: var(--primary); outline: none; }
+.admin-category-filter {
+  padding: 10px 32px 10px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); font-size: 0.9rem; background: var(--bg-white);
+  color: var(--text); cursor: pointer; transition: border-color 0.2s; min-width: 180px;
+}
+.admin-category-filter:focus { border-color: var(--primary); outline: none; }
 
 /* ===== PRODUCT TABLE — SELECTION ===== */
 .product-select-cb { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary); }
