@@ -9,13 +9,20 @@ import CategoryGrid from '../components/shop/CategoryGrid';
 import ProductCard from '../components/shop/ProductCard';
 import CartBar from '../components/shop/CartBar';
 import Loader from '../components/common/Loader';
-import { getCategories, getSubCategories, getTrendingByCategory, getTrendingProducts } from '../services/productService';
+import {
+  getCategories, getSubCategories, getTrendingByCategory, getTrendingProducts,
+  getBuyAgainProducts, getSuggestedProducts,
+} from '../services/productService';
 import { useShopSocket } from '../hooks/useSocket';
+import { useAuth } from '../hooks/useAuth';
 
 const ShopPage = () => {
+  const { user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [trendingSections, setTrendingSections] = useState([]);
   const [trendingProducts, setTrendingProducts] = useState([]);
+  const [buyAgainProducts, setBuyAgainProducts] = useState([]);
+  const [suggested, setSuggested] = useState(null);
   const [loading, setLoading] = useState(true);
   const [categoriesWithSubs, setCategoriesWithSubs] = useState(new Set());
   const navigate = useNavigate();
@@ -23,15 +30,23 @@ const ShopPage = () => {
   useEffect(() => {
     getCategories().then((res) => setCategories(res.data.data)).catch(console.error);
     getTrendingProducts(12).then((res) => setTrendingProducts(res.data.data)).catch(console.error);
+    getSuggestedProducts().then((res) => setSuggested(res.data.data)).catch(console.error);
     getSubCategories().then((res) => {
       const subs = res.data.data || [];
       const parentSlugs = new Set();
       subs.forEach((s) => {
         if (s.parentCategory?.slug) parentSlugs.add(s.parentCategory.slug);
+        (s.additionalCategories || []).forEach((c) => c.slug && parentSlugs.add(c.slug));
       });
       setCategoriesWithSubs(parentSlugs);
     }).catch(console.error);
   }, []);
+
+  // Buy-again is personal — only fetch once we know who's logged in
+  useEffect(() => {
+    if (!user) { setBuyAgainProducts([]); return; }
+    getBuyAgainProducts().then((res) => setBuyAgainProducts(res.data.data)).catch(console.error);
+  }, [user]);
 
   // Fetch trending products grouped by category
   useEffect(() => {
@@ -44,17 +59,13 @@ const ShopPage = () => {
 
   // Real-time product updates
   const handleProductUpdate = useCallback((updatedProduct) => {
-    setTrendingProducts((prev) =>
-      prev.map((p) => (p._id === updatedProduct._id ? { ...p, ...updatedProduct } : p))
-    );
+    const patch = (p) => (p._id === updatedProduct._id ? { ...p, ...updatedProduct } : p);
+    setTrendingProducts((prev) => prev.map(patch));
     setTrendingSections((prev) =>
-      prev.map((section) => ({
-        ...section,
-        products: section.products.map((p) =>
-          p._id === updatedProduct._id ? { ...p, ...updatedProduct } : p
-        ),
-      }))
+      prev.map((section) => ({ ...section, products: section.products.map(patch) }))
     );
+    setBuyAgainProducts((prev) => prev.map(patch));
+    setSuggested((prev) => (prev ? { ...prev, products: prev.products.map(patch) } : prev));
   }, []);
 
   useShopSocket(handleProductUpdate);
@@ -71,6 +82,23 @@ const ShopPage = () => {
     <div className="shop-page">
       <HeroBanner />
       <QuickActions />
+
+      {/* Time-of-day contextual suggestions */}
+      {suggested?.products?.length > 0 && (
+        <section className="home-section">
+          <div className="section-title-row">
+            <h2 className="section-heading">{suggested.label}</h2>
+            <button className="see-all-btn" onClick={() => navigate('/category/all')}>
+              See all
+            </button>
+          </div>
+          <div className="product-scroll-row">
+            {suggested.products.map((product) => (
+              <ProductCard key={product._id} product={product} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Prescription upload banner */}
       <button className="rx-home-banner" onClick={() => navigate('/prescription')}>
@@ -104,6 +132,20 @@ const ShopPage = () => {
           <span className="deals-banner-emoji">🛍️</span>
         </div>
       </div>
+
+      {/* Buy it again — personal repeat-purchase row */}
+      {buyAgainProducts.length > 0 && (
+        <section className="home-section">
+          <div className="section-title-row">
+            <h2 className="section-heading">🔁 Buy it again</h2>
+          </div>
+          <div className="product-scroll-row">
+            {buyAgainProducts.map((product) => (
+              <ProductCard key={product._id} product={product} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Trending Products */}
       {trendingProducts.length > 0 && (

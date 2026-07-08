@@ -4,8 +4,10 @@
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const SubCategory = require('../models/SubCategory');
+const SearchTerm = require('../models/SearchTerm');
 const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
+const { scoreProduct, seededShuffle, todaySeed } = require('../utils/trending');
 
 // GET /api/products — list products with optional filters
 const getProducts = async (req, res, next) => {
@@ -76,6 +78,9 @@ const getProduct = async (req, res, next) => {
 
     if (!product) throw ApiError.notFound('Product not found');
 
+    // Fire-and-forget view tracking — never block or fail the response
+    Product.updateOne({ _id: product._id }, { $inc: { viewCount: 1 } }).catch(() => {});
+
     ApiResponse.success(res, product);
   } catch (err) {
     next(err);
@@ -101,7 +106,8 @@ const getSubCategories = async (req, res, next) => {
     if (category) {
       const cat = await Category.findOne({ slug: category, isActive: true });
       if (cat) {
-        query.parentCategory = cat._id;
+        // Match either the primary parentCategory or the optional additionalCategories list
+        query.$or = [{ parentCategory: cat._id }, { additionalCategories: cat._id }];
       } else {
         return ApiResponse.success(res, []);
       }
@@ -109,6 +115,7 @@ const getSubCategories = async (req, res, next) => {
 
     const subCategories = await SubCategory.find(query)
       .populate('parentCategory', 'name slug')
+      .populate('additionalCategories', 'name slug')
       .sort({ displayOrder: 1, name: 1 });
 
     ApiResponse.success(res, subCategories);
@@ -121,7 +128,8 @@ const getSubCategories = async (req, res, next) => {
 const getSubCategoryProducts = async (req, res, next) => {
   try {
     const sub = await SubCategory.findOne({ slug: req.params.slug, isActive: true })
-      .populate('parentCategory', 'name slug');
+      .populate('parentCategory', 'name slug')
+      .populate('additionalCategories', 'name slug');
     if (!sub) throw ApiError.notFound('SubCategory not found');
 
     const products = await Product.find({ subCategory: sub._id, isActive: true })
@@ -146,6 +154,15 @@ const searchProducts = async (req, res, next) => {
 
     const query = q.trim();
     const parsedLimit = Math.min(50, Math.max(1, parseInt(limit) || 20));
+
+    // Fire-and-forget search term tracking — powers "popular searches"
+    if (query.length >= 2) {
+      SearchTerm.updateOne(
+        { term: query.toLowerCase() },
+        { $inc: { count: 1 }, $set: { lastSearchedAt: new Date() } },
+        { upsert: true }
+      ).catch(() => {});
+    }
 
     // Only return products from active categories
     const activeCategories = await Category.find({ isActive: true }).select('_id').lean();
@@ -218,17 +235,19 @@ const searchProducts = async (req, res, next) => {
 };
 
 // GET /api/products/trending — products grouped by category for homepage sections
+// Ranked by a popularity score (orders + views + recency boost), then daily-shuffled
+// within the top pool so the order feels fresh without jumping around on every reload.
 const getTrendingByCategory = async (req, res, next) => {
   try {
     const { limit = 8 } = req.query;
     const parsedLimit = Math.min(20, Math.max(1, parseInt(limit) || 8));
+    const seed = todaySeed();
 
     // Get all active categories
     const categories = await Category.find({ isActive: true })
       .sort({ displayOrder: 1, name: 1 })
       .lean();
 
-    // For each category, fetch top products (in-stock first, then by createdAt)
     const sections = await Promise.all(
       categories.map(async (cat) => {
         const products = await Product.find({
@@ -237,13 +256,20 @@ const getTrendingByCategory = async (req, res, next) => {
         })
           .populate('category', 'name slug icon')
           .populate('subCategory', 'name slug')
-          .sort({ inStock: -1, createdAt: -1 })
-          .limit(parsedLimit)
           .lean();
+
+        const inStock = products.filter((p) => p.inStock).sort((a, b) => scoreProduct(b) - scoreProduct(a));
+        const outOfStock = products.filter((p) => !p.inStock).sort((a, b) => scoreProduct(b) - scoreProduct(a));
+
+        // Shuffle within the top scoring pool (wider than the limit) for daily variety
+        const pool = seededShuffle(inStock.slice(0, parsedLimit * 2), seed + cat._id).slice(0, parsedLimit);
+        const topProducts = pool.length < parsedLimit
+          ? [...pool, ...outOfStock].slice(0, parsedLimit)
+          : pool;
 
         return {
           category: cat,
-          products,
+          products: topProducts,
         };
       })
     );
@@ -257,4 +283,62 @@ const getTrendingByCategory = async (req, res, next) => {
   }
 };
 
-module.exports = { getProducts, getProduct, getCategories, getSubCategories, getSubCategoryProducts, searchProducts, getTrendingByCategory };
+// GET /api/products/trending/all — a single mixed "Trending Products" feed for the homepage
+// Round-robins across categories so no single category dominates, ranked by popularity score.
+const getTrendingProducts = async (req, res, next) => {
+  try {
+    const { limit = 12 } = req.query;
+    const parsedLimit = Math.min(30, Math.max(1, parseInt(limit) || 12));
+    const seed = todaySeed();
+
+    const categories = await Category.find({ isActive: true }).select('_id').lean();
+
+    // Top candidates per category (in-stock only, ranked by score)
+    const perCategory = await Promise.all(
+      categories.map(async (cat) => {
+        const products = await Product.find({ category: cat._id, isActive: true, inStock: true })
+          .populate('category', 'name slug icon')
+          .populate('subCategory', 'name slug')
+          .lean();
+        return products.sort((a, b) => scoreProduct(b) - scoreProduct(a)).slice(0, parsedLimit);
+      })
+    );
+
+    // Round-robin interleave: one product per category per round
+    const mixed = [];
+    for (let i = 0; mixed.length < parsedLimit && perCategory.some((c) => c[i]); i++) {
+      for (const categoryProducts of perCategory) {
+        if (categoryProducts[i]) mixed.push(categoryProducts[i]);
+        if (mixed.length >= parsedLimit) break;
+      }
+    }
+
+    ApiResponse.success(res, seededShuffle(mixed, seed).slice(0, parsedLimit));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/search/popular — top search terms, powers "popular searches" chips
+const getPopularSearches = async (req, res, next) => {
+  try {
+    const { limit = 8 } = req.query;
+    const parsedLimit = Math.min(20, Math.max(1, parseInt(limit) || 8));
+    const terms = await SearchTerm.find().sort({ count: -1 }).limit(parsedLimit).select('term -_id').lean();
+    ApiResponse.success(res, terms.map((t) => t.term));
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  getProducts,
+  getProduct,
+  getCategories,
+  getSubCategories,
+  getSubCategoryProducts,
+  searchProducts,
+  getTrendingByCategory,
+  getTrendingProducts,
+  getPopularSearches,
+};

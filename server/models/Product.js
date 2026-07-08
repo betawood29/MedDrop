@@ -56,6 +56,18 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Popularity signals — used to compute trending/recommendation scores
+    viewCount: {
+      type: Number,
+      default: 0,
+    },
+    orderCount: {
+      type: Number,
+      default: 0,
+    },
+    lastOrderedAt: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );

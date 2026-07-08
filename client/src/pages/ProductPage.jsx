@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Minus, Clock, ShieldCheck, Tag, Package, ChevronRight, Upload } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
-import { getProduct, getProducts } from '../services/productService';
+import { getProduct, getProducts, getFrequentlyBoughtTogether } from '../services/productService';
 import { formatPrice } from '../utils/formatters';
 import { getDeliveryInfo } from '../utils/constants';
 import ProductGrid from '../components/shop/ProductGrid';
@@ -18,6 +18,7 @@ const ProductPage = () => {
 
   const [product, setProduct] = useState(null);
   const [suggested, setSuggested] = useState([]);
+  const [frequentlyBought, setFrequentlyBought] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -35,6 +36,7 @@ const ProductPage = () => {
     setLoading(true);
     setImgLoaded(false);
     setError('');
+    setFrequentlyBought([]);
     getProduct(id)
       .then((res) => {
         setProduct(res.data.data);
@@ -52,6 +54,10 @@ const ProductPage = () => {
       })
       .catch(() => setError('Product not found'))
       .finally(() => setLoading(false));
+
+    getFrequentlyBoughtTogether(id)
+      .then((res) => setFrequentlyBought(res.data.data.filter((p) => p._id !== id)))
+      .catch(() => setFrequentlyBought([]));
   }, [id]);
 
   if (loading) return <Loader text="Loading product..." />;
@@ -213,6 +219,16 @@ const ProductPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Frequently Bought Together */}
+      {frequentlyBought.length > 0 && (
+        <div className="pdp-suggested">
+          <div className="pdp-suggested-header">
+            <h3>Frequently Bought Together</h3>
+          </div>
+          <ProductGrid products={frequentlyBought.slice(0, 6)} loading={false} />
+        </div>
+      )}
 
       {/* Suggested Products */}
       {suggested.length > 0 && (

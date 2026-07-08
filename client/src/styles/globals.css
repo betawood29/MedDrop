@@ -865,6 +865,8 @@ img { max-width: 100%; display: block; }
 .cart-page-left { flex: 1; min-width: 0; }
 .cart-page-right { width: 100%; }
 .cart-items { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.cart-fbt-section { margin-bottom: 16px; }
+.cart-fbt-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 10px; }
 .cart-item {
   display: flex; gap: 12px; background: var(--bg-white); padding: 12px;
   border-radius: var(--radius-sm); box-shadow: var(--shadow); align-items: center;
@@ -2041,6 +2043,15 @@ img { max-width: 100%; display: block; }
 .cm-fields { flex: 1; display: flex; flex-direction: column; gap: 8px; }
 .cm-fields .input { margin-bottom: 0; }
 .cm-fields-row { display: flex; gap: 8px; align-items: center; }
+.cm-additional-cats { display: flex; flex-direction: column; gap: 6px; }
+.cm-additional-cats-label { font-size: 0.78rem; color: var(--text-muted); }
+.cm-additional-cats-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cm-additional-cat-chip {
+  display: flex; align-items: center; gap: 4px; font-size: 0.8rem;
+  padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border);
+  cursor: pointer; user-select: none;
+}
+.cm-additional-cat-chip input { accent-color: var(--primary); }
 
 .cm-image-preview {
   position: relative; width: 64px; height: 64px; border-radius: var(--radius-sm);

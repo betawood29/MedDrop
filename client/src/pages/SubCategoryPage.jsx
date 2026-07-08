@@ -9,7 +9,7 @@ import { ArrowLeft } from 'lucide-react';
 import ProductCard from '../components/shop/ProductCard';
 import CartBar from '../components/shop/CartBar';
 import Loader from '../components/common/Loader';
-import { getSubCategories, getProducts } from '../services/productService';
+import { getSubCategories, getProducts, getCategories } from '../services/productService';
 import { useShopSocket } from '../hooks/useSocket';
 
 const PAGE_LIMIT = 20;
@@ -41,10 +41,17 @@ const SubCategoryPage = () => {
     const load = async () => {
       setLoadingSubs(true);
       try {
-        const res = await getSubCategories({ category: slug });
-        const subs = res.data.data || [];
+        const [subRes, catRes] = await Promise.all([
+          getSubCategories({ category: slug }),
+          getCategories(),
+        ]);
+        const subs = subRes.data.data || [];
         setSubCategories(subs);
-        if (subs[0]?.parentCategory?.name) setCategoryName(subs[0].parentCategory.name);
+        // Derive the page title from the route's own category, not from a subcategory's
+        // parent — a subcategory can now be reached via additionalCategories too, so its
+        // stored parent isn't necessarily the category the user is currently browsing.
+        const routeCategory = (catRes.data.data || []).find((c) => c.slug === slug);
+        if (routeCategory) setCategoryName(routeCategory.name);
         setActiveSub(ALL_TAB);
       } catch (err) {
         console.error('Failed to load subcategories:', err);

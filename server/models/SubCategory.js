@@ -20,6 +20,13 @@ const subCategorySchema = new mongoose.Schema(
       ref: 'Category',
       required: [true, 'Parent category is required'],
     },
+    // Optional — lets a subcategory also surface under other categories
+    // (e.g. "Lassi and Milkshakes" under both Dairy and Breakfast and Beverages)
+    // without disturbing the required parentCategory relationship above.
+    additionalCategories: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }],
+      default: [],
+    },
     icon: {
       type: String,
       default: '📦',

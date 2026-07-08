@@ -7,7 +7,7 @@ import { uploadSubCategoryImage } from '../../services/adminService';
 
 const SubCategoryManager = ({ subCategories, categories, onCreate, onUpdate, onDelete }) => {
   const [editing, setEditing] = useState(null);
-  const [newSub, setNewSub] = useState({ name: '', parentCategory: '', icon: '💊', image: '', displayOrder: 0 });
+  const [newSub, setNewSub] = useState({ name: '', parentCategory: '', additionalCategories: [], icon: '💊', image: '', displayOrder: 0 });
   const [showAdd, setShowAdd] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [filterCat, setFilterCat] = useState('');
@@ -48,7 +48,7 @@ const SubCategoryManager = ({ subCategories, categories, onCreate, onUpdate, onD
       return;
     }
     onCreate(newSub);
-    setNewSub({ name: '', parentCategory: '', icon: '💊', image: '', displayOrder: 0 });
+    setNewSub({ name: '', parentCategory: '', additionalCategories: [], icon: '💊', image: '', displayOrder: 0 });
     setShowAdd(false);
   };
 
@@ -57,6 +57,7 @@ const SubCategoryManager = ({ subCategories, categories, onCreate, onUpdate, onD
     onUpdate(editing._id, {
       name: editing.name,
       parentCategory: editing.parentCategory?._id || editing.parentCategory,
+      additionalCategories: (editing.additionalCategories || []).map((c) => c._id || c),
       icon: editing.icon,
       image: editing.image || '',
       displayOrder: editing.displayOrder,
@@ -64,8 +65,15 @@ const SubCategoryManager = ({ subCategories, categories, onCreate, onUpdate, onD
     setEditing(null);
   };
 
+  // Toggle a category id in/out of an additionalCategories array, excluding the current parent
+  const toggleAdditionalCategory = (list, catId) =>
+    list.includes(catId) ? list.filter((id) => id !== catId) : [...list, catId];
+
   const filtered = filterCat
-    ? subCategories.filter((s) => (s.parentCategory?._id || s.parentCategory) === filterCat)
+    ? subCategories.filter((s) =>
+        (s.parentCategory?._id || s.parentCategory) === filterCat ||
+        (s.additionalCategories || []).some((c) => (c._id || c) === filterCat)
+      )
     : subCategories;
 
   return (
@@ -113,6 +121,21 @@ const SubCategoryManager = ({ subCategories, categories, onCreate, onUpdate, onD
                 <option value="">Parent Category *</option>
                 {categories.map((c) => <option key={c._id} value={c._id}>{c.icon} {c.name}</option>)}
               </select>
+              <div className="cm-additional-cats">
+                <span className="cm-additional-cats-label">Also show under (optional):</span>
+                <div className="cm-additional-cats-chips">
+                  {categories.filter((c) => c._id !== newSub.parentCategory).map((c) => (
+                    <label key={c._id} className="cm-additional-cat-chip">
+                      <input
+                        type="checkbox"
+                        checked={newSub.additionalCategories.includes(c._id)}
+                        onChange={() => setNewSub({ ...newSub, additionalCategories: toggleAdditionalCategory(newSub.additionalCategories, c._id) })}
+                      />
+                      {c.icon} {c.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className="cm-fields-row">
                 <input className="input" placeholder="Icon" value={newSub.icon} onChange={(e) => setNewSub({ ...newSub, icon: e.target.value })} style={{ width: 60 }} />
                 <input className="input" type="number" placeholder="Order" value={newSub.displayOrder} onChange={(e) => setNewSub({ ...newSub, displayOrder: Number(e.target.value) })} style={{ width: 70 }} />
@@ -146,6 +169,24 @@ const SubCategoryManager = ({ subCategories, categories, onCreate, onUpdate, onD
                   <input ref={editFileRef} type="file" accept="image/*" hidden onChange={(e) => handleImageUpload(e.target.files[0], 'edit')} />
                   <div className="cm-fields">
                     <input className="input" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+                    <div className="cm-additional-cats">
+                      <span className="cm-additional-cats-label">Also show under (optional):</span>
+                      <div className="cm-additional-cats-chips">
+                        {categories.filter((c) => c._id !== (editing.parentCategory?._id || editing.parentCategory)).map((c) => {
+                          const selectedIds = (editing.additionalCategories || []).map((ac) => ac._id || ac);
+                          return (
+                            <label key={c._id} className="cm-additional-cat-chip">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.includes(c._id)}
+                                onChange={() => setEditing({ ...editing, additionalCategories: toggleAdditionalCategory(selectedIds, c._id) })}
+                              />
+                              {c.icon} {c.name}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
                     <div className="cm-fields-row">
                       <input className="input" value={editing.icon} onChange={(e) => setEditing({ ...editing, icon: e.target.value })} style={{ width: 60 }} />
                       <input className="input" type="number" value={editing.displayOrder} onChange={(e) => setEditing({ ...editing, displayOrder: Number(e.target.value) })} style={{ width: 70 }} />
@@ -167,7 +208,10 @@ const SubCategoryManager = ({ subCategories, categories, onCreate, onUpdate, onD
                   )}
                   <div>
                     <span className="cm-name">{sub.name}</span>
-                    <span className="cm-slug">{sub.parentCategory?.name || ''} &middot; {sub.slug}</span>
+                    <span className="cm-slug">
+                      {[sub.parentCategory?.name, ...(sub.additionalCategories || []).map((c) => c.name)].filter(Boolean).join(', ')}
+                      {' '}&middot; {sub.slug}
+                    </span>
                   </div>
                 </div>
                 <div className="cm-display-right">

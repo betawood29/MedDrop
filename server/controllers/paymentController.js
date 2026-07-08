@@ -157,12 +157,17 @@ const verifyAndCreateOrder = async (req, res, next) => {
       productsToUpdate.push({ product, quantity: item.quantity });
     }
 
-    // Deduct stock
+    // Deduct stock + track popularity signal (units sold)
     for (const { product, quantity } of productsToUpdate) {
-      if (product.stockQty > 0) {
+      product.orderCount = (product.orderCount || 0) + quantity;
+      product.lastOrderedAt = new Date();
+      const tracksStock = product.stockQty > 0;
+      if (tracksStock) {
         product.stockQty -= quantity;
         if (product.stockQty <= 0) { product.stockQty = 0; product.inStock = false; }
-        await product.save();
+      }
+      await product.save();
+      if (tracksStock) {
         try {
           const { getIO } = require('../config/socket');
           const payload = { _id: product._id, name: product.name, inStock: product.inStock, stockQty: product.stockQty };

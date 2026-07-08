@@ -4,11 +4,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, ArrowLeft, Plus, Minus, ChevronRight } from 'lucide-react';
-import { searchProducts } from '../../services/productService';
+import { searchProducts, getPopularSearches } from '../../services/productService';
 import { useCart } from '../../hooks/useCart';
 import { formatPrice } from '../../utils/formatters';
 
-const POPULAR_SEARCHES = ['Dolo', 'Crocin', 'Band-Aid', 'Sanitizer', 'Protein', 'Notebook', 'Chips'];
+const FALLBACK_POPULAR_SEARCHES = ['Dolo', 'Crocin', 'Band-Aid', 'Sanitizer', 'Protein', 'Notebook', 'Chips'];
 const RECENT_KEY = 'meddrop_recent_searches';
 const MAX_RECENT = 8;
 
@@ -34,6 +34,7 @@ const GlobalSearch = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [recentSearches, setRecentSearches] = useState(getRecentSearches());
+  const [popularSearches, setPopularSearches] = useState(FALLBACK_POPULAR_SEARCHES);
   const inputRef = useRef(null);
   const timerRef = useRef(null);
   const navigate = useNavigate();
@@ -42,6 +43,15 @@ const GlobalSearch = ({ onClose }) => {
     inputRef.current?.focus();
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  useEffect(() => {
+    getPopularSearches(8)
+      .then((res) => {
+        const terms = res.data.data;
+        if (terms?.length) setPopularSearches(terms);
+      })
+      .catch(() => {});
   }, []);
 
   // Debounced search
@@ -136,7 +146,7 @@ const GlobalSearch = ({ onClose }) => {
                 <h4 className="gs-section-title">Popular searches</h4>
               </div>
               <div className="gs-popular">
-                {POPULAR_SEARCHES.map((term) => (
+                {popularSearches.map((term) => (
                   <button key={term} className="gs-popular-chip" onClick={() => setQuery(term)}>
                     <Search size={13} /> {term}
                   </button>

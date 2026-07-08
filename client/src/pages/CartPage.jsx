@@ -9,11 +9,13 @@ import {
 } from 'lucide-react';
 import CartItem from '../components/cart/CartItem';
 import CartSummary from '../components/cart/CartSummary';
+import ProductCard from '../components/shop/ProductCard';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
 import { formatPrice } from '../utils/formatters';
 import { getDeliveryInfo, DELIVERY_CUTOFF_HOUR, RX_BLOCKING_STATUSES } from '../utils/constants';
 import { getMyPrescriptions } from '../services/prescriptionService';
+import { getFrequentlyBoughtTogether } from '../services/productService';
 
 // ── per-status display config ────────────────────────────────────────────────
 const RX_NOTICE = {
@@ -77,6 +79,17 @@ const CartPage = () => {
 
   // null = loading, 'approved' | 'partially_approved' | 'pending' | 'rejected' | 'clarification_required' | 'none'
   const [rxStatus, setRxStatus] = useState(null);
+
+  // "You might also need" — frequently bought together with the most recently added item
+  const [frequentlyBought, setFrequentlyBought] = useState([]);
+  const anchorProductId = items.length ? items[items.length - 1].product : null;
+
+  useEffect(() => {
+    if (!anchorProductId) { setFrequentlyBought([]); return; }
+    getFrequentlyBoughtTogether(anchorProductId)
+      .then((res) => setFrequentlyBought(res.data.data))
+      .catch(() => setFrequentlyBought([]));
+  }, [anchorProductId]);
 
   useEffect(() => {
     if (!hasRxItems || !user) { setRxStatus(null); return; }
@@ -182,6 +195,17 @@ const CartPage = () => {
           {items.length > 0 && (
             <div className="cart-items">
               {items.map((item) => <CartItem key={item.product} item={item} />)}
+            </div>
+          )}
+
+          {frequentlyBought.length > 0 && (
+            <div className="cart-fbt-section">
+              <h3 className="cart-fbt-title">You might also need</h3>
+              <div className="product-scroll-row">
+                {frequentlyBought.map((product) => (
+                  <ProductCard key={product._id} product={product} />
+                ))}
+              </div>
             </div>
           )}
 

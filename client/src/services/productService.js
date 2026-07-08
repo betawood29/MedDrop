@@ -14,6 +14,15 @@ export const getSubCategoryProducts = (slug) => api.get(`/subcategories/${slug}/
 
 export const searchProducts = (q, limit = 20) => api.get('/search', { params: { q, limit } });
 
+export const getPopularSearches = (limit = 8) => api.get('/search/popular', { params: { limit } });
+
 export const getTrendingByCategory = (limit = 8) => api.get('/products/trending', { params: { limit } });
 
-export const getTrendingProducts = (limit = 12) => api.get('/products', { params: { limit, sort: '-createdAt', inStock: true } });
+export const getTrendingProducts = (limit = 12) => api.get('/products/trending/all', { params: { limit } });
+
+export const getBuyAgainProducts = () => api.get('/recommendations/buy-again');
+
+export const getFrequentlyBoughtTogether = (productId) =>
+  api.get(`/recommendations/frequently-bought-together/${productId}`);
+
+export const getSuggestedProducts = () => api.get('/recommendations/suggested');

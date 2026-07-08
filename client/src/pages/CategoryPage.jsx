@@ -47,7 +47,10 @@ const CategoryPage = () => {
       // Build set of category slugs that have subcategories
       const subs = subRes.data.data || [];
       const withSubs = new Set();
-      subs.forEach(s => { if (s.parentCategory?.slug) withSubs.add(s.parentCategory.slug); });
+      subs.forEach(s => {
+        if (s.parentCategory?.slug) withSubs.add(s.parentCategory.slug);
+        (s.additionalCategories || []).forEach(c => c.slug && withSubs.add(c.slug));
+      });
       setCategoriesWithSubs(withSubs);
     }).catch(console.error);
   }, [slug]);

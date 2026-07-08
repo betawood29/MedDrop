@@ -593,8 +593,14 @@ const deleteCategory = async (req, res, next) => {
     const category = await Category.findByIdAndDelete(req.params.id);
     if (!category) throw ApiError.notFound('Category not found');
 
-    // Remove all subcategories under this category
+    // Remove all subcategories whose primary parent is this category (unchanged behavior)
     await SubCategory.deleteMany({ parentCategory: req.params.id });
+
+    // Also clear this category out of any subcategory's optional additionalCategories
+    await SubCategory.updateMany(
+      { additionalCategories: req.params.id },
+      { $pull: { additionalCategories: req.params.id } }
+    );
 
     // Unset category and subCategory on products that referenced this category
     await Product.updateMany(
@@ -669,10 +675,13 @@ const uploadCategoryImage = async (req, res, next) => {
 const getAdminSubCategories = async (req, res, next) => {
   try {
     const { category } = req.query;
-    const query = {};
-    if (category) query.parentCategory = category;
+    // Match either the primary parentCategory or the optional additionalCategories list
+    const query = category
+      ? { $or: [{ parentCategory: category }, { additionalCategories: category }] }
+      : {};
     const subs = await SubCategory.find(query)
       .populate('parentCategory', 'name slug')
+      .populate('additionalCategories', 'name slug')
       .sort({ displayOrder: 1, name: 1 });
     ApiResponse.success(res, subs);
   } catch (err) {
@@ -683,10 +692,11 @@ const getAdminSubCategories = async (req, res, next) => {
 // POST /api/admin/subcategories
 const createSubCategory = async (req, res, next) => {
   try {
-    const { name, parentCategory, icon, image, displayOrder } = req.body;
+    const { name, parentCategory, additionalCategories, icon, image, displayOrder } = req.body;
     if (!name || !parentCategory) throw ApiError.badRequest('Name and parentCategory are required');
-    const sub = await SubCategory.create({ name, parentCategory, icon, image, displayOrder });
+    const sub = await SubCategory.create({ name, parentCategory, additionalCategories, icon, image, displayOrder });
     await sub.populate('parentCategory', 'name slug');
+    await sub.populate('additionalCategories', 'name slug');
     ApiResponse.created(res, sub, 'SubCategory created');
   } catch (err) {
     next(err);
@@ -699,7 +709,9 @@ const updateSubCategory = async (req, res, next) => {
     const sub = await SubCategory.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
-    }).populate('parentCategory', 'name slug');
+    })
+      .populate('parentCategory', 'name slug')
+      .populate('additionalCategories', 'name slug');
     if (!sub) throw ApiError.notFound('SubCategory not found');
     ApiResponse.success(res, sub, 'SubCategory updated');
   } catch (err) {

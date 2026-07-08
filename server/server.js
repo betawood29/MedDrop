@@ -28,7 +28,8 @@ const cartRoutes = require('./routes/cartRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
 const prescriptionRoutes = require('./routes/prescriptionRoutes');
-const { getCategories, getSubCategories, getSubCategoryProducts, searchProducts, getTrendingByCategory } = require('./controllers/productController');
+const { getCategories, getSubCategories, getSubCategoryProducts, searchProducts, getTrendingByCategory, getTrendingProducts, getPopularSearches } = require('./controllers/productController');
+const recommendationRoutes = require('./routes/recommendationRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -85,12 +86,15 @@ require('fs').mkdirSync(uploadsDir, { recursive: true });
 
 // --- API Routes ---
 app.use('/api/auth', authRoutes);
+app.get('/api/products/trending/all', (req, res, next) => getTrendingProducts(req, res, next));
 app.get('/api/products/trending', (req, res, next) => getTrendingByCategory(req, res, next));
 app.use('/api/products', productRoutes);
 app.use('/api/categories', (req, res, next) => getCategories(req, res, next));
+app.get('/api/search/popular', (req, res, next) => getPopularSearches(req, res, next));
 app.get('/api/search', (req, res, next) => searchProducts(req, res, next));
 app.get('/api/subcategories/:slug/products', (req, res, next) => getSubCategoryProducts(req, res, next));
 app.get('/api/subcategories', (req, res, next) => getSubCategories(req, res, next));
+app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
