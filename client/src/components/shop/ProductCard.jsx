@@ -5,6 +5,7 @@ import { Plus, Minus } from 'lucide-react';
 import { useCart } from '../../hooks/useCart';
 import { formatPrice } from '../../utils/formatters';
 import { getDeliveryInfo } from '../../utils/constants';
+import { optimizeImage } from '../../utils/image';
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ const ProductCard = ({ product }) => {
 
       <div className="product-image" onClick={goToProduct} style={{ cursor: 'pointer' }}>
         {product.image ? (
-          <img src={product.image} alt={product.name} loading="lazy" />
+          <img src={optimizeImage(product.image, 300)} alt={product.name} loading="lazy" decoding="async" width="300" height="300" />
         ) : (
           <div className="product-image-placeholder">{product.category?.icon || '📦'}</div>
         )}

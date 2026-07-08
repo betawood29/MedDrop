@@ -7,6 +7,7 @@ import { useCart } from '../hooks/useCart';
 import { getProduct, getProducts, getFrequentlyBoughtTogether } from '../services/productService';
 import { formatPrice } from '../utils/formatters';
 import { getDeliveryInfo } from '../utils/constants';
+import { optimizeImage } from '../utils/image';
 import ProductGrid from '../components/shop/ProductGrid';
 import CartBar from '../components/shop/CartBar';
 import Loader from '../components/common/Loader';
@@ -95,8 +96,9 @@ const ProductPage = () => {
         <div className={`pdp-image-wrap ${imgLoaded ? 'loaded' : ''}`}>
           {product.image ? (
             <img
-              src={product.image}
+              src={optimizeImage(product.image, 700)}
               alt={product.name}
+              decoding="async"
               onLoad={() => setImgLoaded(true)}
             />
           ) : (

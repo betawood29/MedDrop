@@ -47,4 +47,26 @@ const seededShuffle = (array, seedString) => {
 // Today's date as YYYY-MM-DD, used as the default shuffle seed
 const todaySeed = () => new Date().toISOString().slice(0, 10);
 
-module.exports = { scoreProduct, seededShuffle, todaySeed };
+// Round-robins products across their subCategory, each internally ranked by scoreFn,
+// so a single bulk-uploaded batch (e.g. all "Ketchup" added in one go, which would
+// otherwise dominate the top of a plain score sort) doesn't crowd out the category's
+// other subcategories before a downstream shuffle/slice picks from the result.
+const diversifyBySubCategory = (products, scoreFn) => {
+  const groups = new Map();
+  for (const p of products) {
+    const sub = p.subCategory;
+    const key = sub ? (sub._id || sub).toString() : 'none';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(p);
+  }
+  const buckets = Array.from(groups.values()).map((g) => g.sort((a, b) => scoreFn(b) - scoreFn(a)));
+  const result = [];
+  for (let i = 0; buckets.some((b) => b[i]); i++) {
+    for (const bucket of buckets) {
+      if (bucket[i]) result.push(bucket[i]);
+    }
+  }
+  return result;
+};
+
+module.exports = { scoreProduct, seededShuffle, todaySeed, diversifyBySubCategory };

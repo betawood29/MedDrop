@@ -3,6 +3,7 @@
 import { Plus, Minus, Trash2 } from 'lucide-react';
 import { useCart } from '../../hooks/useCart';
 import { formatPrice } from '../../utils/formatters';
+import { optimizeImage } from '../../utils/image';
 
 const CartItem = ({ item }) => {
   const { updateQty, removeItem } = useCart();
@@ -13,7 +14,7 @@ const CartItem = ({ item }) => {
     <div className="cart-item">
       <div className="cart-item-image">
         {item.image ? (
-          <img src={item.image} alt={item.name} />
+          <img src={optimizeImage(item.image, 150)} alt={item.name} loading="lazy" decoding="async" />
         ) : (
           <div className="cart-item-placeholder">📦</div>
         )}

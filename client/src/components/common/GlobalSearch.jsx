@@ -7,6 +7,7 @@ import { Search, X, ArrowLeft, Plus, Minus, ChevronRight } from 'lucide-react';
 import { searchProducts, getPopularSearches } from '../../services/productService';
 import { useCart } from '../../hooks/useCart';
 import { formatPrice } from '../../utils/formatters';
+import { optimizeImage } from '../../utils/image';
 
 const FALLBACK_POPULAR_SEARCHES = ['Dolo', 'Crocin', 'Band-Aid', 'Sanitizer', 'Protein', 'Notebook', 'Chips'];
 const RECENT_KEY = 'meddrop_recent_searches';
@@ -230,7 +231,7 @@ const SearchResultCard = ({ product, onClick }) => {
     <div className="gs-result-card">
       <div className="gs-result-card-img" onClick={onClick}>
         {product.image ? (
-          <img src={product.image} alt={product.name} loading="lazy" />
+          <img src={optimizeImage(product.image, 200)} alt={product.name} loading="lazy" decoding="async" />
         ) : (
           <span className="gs-result-card-placeholder">{product.category?.icon || '📦'}</span>
         )}

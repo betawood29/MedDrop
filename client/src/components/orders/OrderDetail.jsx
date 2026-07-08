@@ -2,6 +2,7 @@
 
 import OrderTracker from './OrderTracker';
 import { formatPrice, formatDateTime } from '../../utils/formatters';
+import { optimizeImage } from '../../utils/image';
 
 const OrderDetail = ({ order }) => {
   return (
@@ -20,7 +21,7 @@ const OrderDetail = ({ order }) => {
             <div key={i} className="order-item-card">
               {item.image && (
                 <div className="order-item-img">
-                  <img src={item.image} alt={item.name} />
+                  <img src={optimizeImage(item.image, 120)} alt={item.name} loading="lazy" decoding="async" />
                 </div>
               )}
               <div className="order-item-info">

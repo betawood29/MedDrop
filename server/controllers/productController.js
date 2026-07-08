@@ -7,19 +7,21 @@ const SubCategory = require('../models/SubCategory');
 const SearchTerm = require('../models/SearchTerm');
 const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
-const { scoreProduct, seededShuffle, todaySeed } = require('../utils/trending');
+const { scoreProduct, seededShuffle, todaySeed, diversifyBySubCategory } = require('../utils/trending');
 
 // GET /api/products — list products with optional filters
 const getProducts = async (req, res, next) => {
   try {
     const { category, subCategory, search, page = 1, limit = 20 } = req.query;
     const query = { isActive: true };
+    let singleCategoryId = null;
 
     // Filter by category slug
     if (category) {
       const cat = await Category.findOne({ slug: category, isActive: true });
       if (cat) {
         query.category = cat._id;
+        singleCategoryId = cat._id;
       } else {
         return ApiResponse.paginated(res, [], { page: 1, limit, total: 0, pages: 0 });
       }
@@ -49,7 +51,34 @@ const getProducts = async (req, res, next) => {
       ];
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const parsedPage = parseInt(page);
+    const parsedLimit = parseInt(limit);
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    // Browsing a single category with no subcategory/search filter (e.g. the "All" tab
+    // within a category that has multiple subcategories) — round-robin across subcategories
+    // instead of a flat createdAt sort, so the listing isn't stacked in subcategory-sized
+    // blocks by upload batch (LIFO). Each subcategory keeps its own newest-first order.
+    if (singleCategoryId && !subCategory && !search) {
+      const idRows = await Product.find(query).select('_id subCategory createdAt').sort({ createdAt: -1 }).lean();
+      const orderedIds = diversifyBySubCategory(idRows, () => 0).map((r) => r._id);
+
+      const total = orderedIds.length;
+      const pageIds = orderedIds.slice(skip, skip + parsedLimit);
+      const docs = await Product.find({ _id: { $in: pageIds } })
+        .populate('category', 'name slug icon')
+        .populate('subCategory', 'name slug');
+      const byId = new Map(docs.map((d) => [d._id.toString(), d]));
+      const products = pageIds.map((id) => byId.get(id.toString())).filter(Boolean);
+
+      return ApiResponse.paginated(res, products, {
+        page: parsedPage,
+        limit: parsedLimit,
+        total,
+        pages: Math.ceil(total / parsedLimit),
+      });
+    }
+
     const total = await Product.countDocuments(query);
 
     const products = await Product.find(query)
@@ -57,13 +86,13 @@ const getProducts = async (req, res, next) => {
       .populate('subCategory', 'name slug')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parsedLimit);
 
     ApiResponse.paginated(res, products, {
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page: parsedPage,
+      limit: parsedLimit,
       total,
-      pages: Math.ceil(total / parseInt(limit)),
+      pages: Math.ceil(total / parsedLimit),
     });
   } catch (err) {
     next(err);
@@ -258,11 +287,16 @@ const getTrendingByCategory = async (req, res, next) => {
           .populate('subCategory', 'name slug')
           .lean();
 
-        const inStock = products.filter((p) => p.inStock).sort((a, b) => scoreProduct(b) - scoreProduct(a));
+        const inStock = products.filter((p) => p.inStock);
         const outOfStock = products.filter((p) => !p.inStock).sort((a, b) => scoreProduct(b) - scoreProduct(a));
 
+        // Round-robin across subcategories (each internally ranked by score) before taking
+        // the top pool — otherwise a single bulk-uploaded subcategory (highest recency boost)
+        // can crowd out the category's other subcategories entirely.
+        const diversePool = diversifyBySubCategory(inStock, scoreProduct);
+
         // Shuffle within the top scoring pool (wider than the limit) for daily variety
-        const pool = seededShuffle(inStock.slice(0, parsedLimit * 2), seed + cat._id).slice(0, parsedLimit);
+        const pool = seededShuffle(diversePool.slice(0, parsedLimit * 2), seed + cat._id).slice(0, parsedLimit);
         const topProducts = pool.length < parsedLimit
           ? [...pool, ...outOfStock].slice(0, parsedLimit)
           : pool;
@@ -300,7 +334,7 @@ const getTrendingProducts = async (req, res, next) => {
           .populate('category', 'name slug icon')
           .populate('subCategory', 'name slug')
           .lean();
-        return products.sort((a, b) => scoreProduct(b) - scoreProduct(a)).slice(0, parsedLimit);
+        return diversifyBySubCategory(products, scoreProduct).slice(0, parsedLimit);
       })
     );
 

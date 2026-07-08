@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Printer, ChevronRight } from 'lucide-react';
 import { formatPrice, formatDateTime } from '../../utils/formatters';
 import { ORDER_STATUSES, PRINT_ORDER_STATUSES } from '../../utils/constants';
+import { optimizeImage } from '../../utils/image';
 
 const OrderCard = ({ order }) => {
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ const OrderCard = ({ order }) => {
           <div className="order-card-thumbs">
             {itemImages.map((item, i) => (
               <div key={i} className="order-thumb">
-                <img src={item.image} alt={item.name} />
+                <img src={optimizeImage(item.image, 100)} alt={item.name} loading="lazy" decoding="async" />
                 {item.quantity > 1 && <span className="order-thumb-qty">x{item.quantity}</span>}
               </div>
             ))}
