@@ -345,6 +345,27 @@ img { max-width: 100%; display: block; }
 .bottom-nav-item.active { color: #7c3aed; font-weight: 700; }
 .bottom-nav-item.active svg { stroke-width: 2.5; }
 
+/* ===== FEEDBACK FAB ===== */
+.feedback-fab {
+  position: fixed;
+  right: 30px;
+  bottom: calc(var(--bottom-nav-height) + 20px);
+  z-index: 60;
+  width: 46px; height: 46px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 4px 14px rgba(124,58,237,0.35), 0 2px 6px rgba(0,0,0,0.1);
+  transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+}
+.feedback-fab:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(124,58,237,0.42), 0 3px 8px rgba(0,0,0,0.12);
+}
+.feedback-fab:active { transform: translateY(0); }
+
 /* ===== MAIN CONTENT ===== */
 .main-content {
   padding-top: var(--nav-height);

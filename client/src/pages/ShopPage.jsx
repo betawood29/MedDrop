@@ -137,7 +137,7 @@ const ShopPage = () => {
       {buyAgainProducts.length > 0 && (
         <section className="home-section">
           <div className="section-title-row">
-            <h2 className="section-heading">🔁 Buy it again</h2>
+            <h2 className="section-heading"> Buy it again</h2>
           </div>
           <div className="product-scroll-row">
             {buyAgainProducts.map((product) => (

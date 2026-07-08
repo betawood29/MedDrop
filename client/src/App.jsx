@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import Navbar from './components/common/Navbar';
 import BottomNav from './components/common/BottomNav';
+import FeedbackFab from './components/common/FeedbackFab';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import OrderNotifications from './components/common/OrderNotifications';
@@ -121,6 +122,7 @@ const CustomerLayout = () => {
           } />
         </Routes>
       </main>
+      <FeedbackFab />
       <BottomNav />
     </>
   );
