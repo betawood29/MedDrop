@@ -23,7 +23,11 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // argsIgnorePattern matches varsIgnorePattern's convention (capitalized/underscore
+      // names are intentional) — without it, a destructured-and-renamed component prop
+      // like `{ icon: Icon }` used only inside JSX is misreported as unused, since
+      // no-unused-vars treats destructured parameters as "args", not "vars".
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[A-Z_]' }],
     },
   },
 ])

@@ -110,7 +110,7 @@ const ProductForm = ({ product, categories, onSubmit, onClose, loading }) => {
       setForm((prev) => ({ ...prev, image: url }));
       setImagePreview(url);
       toast.success('Image uploaded!');
-    } catch (err) {
+    } catch {
       toast.error('Failed to upload image');
       setImagePreview(form.image || '');
     } finally {

@@ -6,7 +6,7 @@ import { formatPrice } from '../../utils/formatters';
 import { optimizeImage } from '../../utils/image';
 
 const CartItem = ({ item }) => {
-  const { updateQty, removeItem } = useCart();
+  const { updateQty } = useCart();
   const maxQty = item.stockQty > 0 ? item.stockQty : Infinity;
   const atMax = item.quantity >= maxQty;
 

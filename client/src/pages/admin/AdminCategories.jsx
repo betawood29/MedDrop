@@ -21,7 +21,7 @@ const AdminCategories = () => {
     try {
       const res = await getAdminCategories();
       setCategories(res.data.data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load categories');
     } finally {
       setLoading(false);
@@ -68,7 +68,7 @@ const AdminCategories = () => {
       const res = await toggleCategory(id);
       toast.success(res.data.message);
       fetchCategories();
-    } catch (err) {
+    } catch {
       toast.error('Failed to toggle category');
     }
   };
@@ -115,7 +115,7 @@ const AdminCategories = () => {
         toast.success('Sub-category deleted');
         fetchSubCategories();
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to delete');
     }
   };

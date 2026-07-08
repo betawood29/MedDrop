@@ -1,6 +1,6 @@
 // Product detail page — Blinkit-style full product view with suggested products
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Minus, Clock, ShieldCheck, Tag, Package, ChevronRight, Upload } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
@@ -34,6 +34,7 @@ const ProductPage = () => {
     : 0;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets local view state when the product id changes, fetch below replaces it
     setLoading(true);
     setImgLoaded(false);
     setError('');

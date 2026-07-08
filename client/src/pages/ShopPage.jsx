@@ -44,13 +44,13 @@ const ShopPage = () => {
 
   // Buy-again is personal — only fetch once we know who's logged in
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets on logout, fetch replaces it below when logged in
     if (!user) { setBuyAgainProducts([]); return; }
     getBuyAgainProducts().then((res) => setBuyAgainProducts(res.data.data)).catch(console.error);
   }, [user]);
 
   // Fetch trending products grouped by category
   useEffect(() => {
-    setLoading(true);
     getTrendingByCategory(8)
       .then((res) => setTrendingSections(res.data.data))
       .catch(console.error)

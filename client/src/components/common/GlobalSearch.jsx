@@ -1,7 +1,7 @@
 // Global search overlay — Blinkit-style full-screen search
 // Autocomplete suggestions, recent searches, product grid results
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, ArrowLeft, Plus, Minus, ChevronRight } from 'lucide-react';
 import { searchProducts, getPopularSearches } from '../../services/productService';

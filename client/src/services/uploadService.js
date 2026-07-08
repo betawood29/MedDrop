@@ -12,7 +12,7 @@ export const parseExcelFile = (file) => {
         const sheet = workbook.Sheets[sheetName];
         const data = XLSX.utils.sheet_to_json(sheet);
         resolve(data);
-      } catch (err) {
+      } catch {
         reject(new Error('Failed to parse Excel file'));
       }
     };

@@ -31,8 +31,6 @@ export const useSocket = (orderId, onUpdate) => {
       socket.disconnect();
     };
   }, [orderId]);
-
-  return socketRef.current;
 };
 
 // Hook for shop pages — live product updates (stock, price changes from admin)
@@ -60,8 +58,6 @@ export const useShopSocket = (onProductUpdate) => {
       socket.disconnect();
     };
   }, []);
-
-  return socketRef.current;
 };
 
 // Hook for admin — listens for new orders AND product updates (stock changes from user purchases)
@@ -98,6 +94,4 @@ export const useAdminSocket = (onNewOrder, onProductUpdate) => {
       socket.disconnect();
     };
   }, []);
-
-  return socketRef.current;
 };

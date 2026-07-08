@@ -6,7 +6,7 @@ import DashboardStats from '../../components/admin/DashboardStats';
 import Loader from '../../components/common/Loader';
 import { getDashboard, getAdminOrders, updateOrderStatus, getAdminPrintOrders, updatePrintOrderStatus } from '../../services/adminService';
 import { useAdminSocket } from '../../hooks/useSocket';
-import { formatPrice, timeAgo, formatDate } from '../../utils/formatters';
+import { formatPrice, timeAgo } from '../../utils/formatters';
 import { ORDER_STATUSES, PRINT_ORDER_STATUSES } from '../../utils/constants';
 import {
   ShoppingBag, IndianRupee, Clock, Package, Users, TrendingUp,
@@ -47,7 +47,7 @@ const AdminDashboard = () => {
       setStats(statsRes.data.data);
       setRecentOrders(ordersRes.data.data);
       setRecentPrintOrders(printOrdersRes.data.data || []);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load dashboard');
     } finally {
       setLoading(false);
@@ -70,7 +70,7 @@ const AdminDashboard = () => {
       await updateOrderStatus(orderId, status);
       toast.success(`Order updated to ${ORDER_STATUSES[status].label}`);
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to update order');
     }
   };
@@ -80,7 +80,7 @@ const AdminDashboard = () => {
       await updatePrintOrderStatus(orderId, status);
       toast.success(`Print order updated to ${PRINT_ORDER_STATUSES[status].label}`);
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to update print order');
     }
   };

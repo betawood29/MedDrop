@@ -85,6 +85,7 @@ const CartPage = () => {
   const anchorProductId = items.length ? items[items.length - 1].product : null;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets when the anchor changes, fetch replaces it below
     if (!anchorProductId) { setFrequentlyBought([]); return; }
     getFrequentlyBoughtTogether(anchorProductId)
       .then((res) => setFrequentlyBought(res.data.data))
@@ -92,6 +93,7 @@ const CartPage = () => {
   }, [anchorProductId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets when Rx items/user change, fetch replaces it below
     if (!hasRxItems || !user) { setRxStatus(null); return; }
     const now = new Date();
     getMyPrescriptions()

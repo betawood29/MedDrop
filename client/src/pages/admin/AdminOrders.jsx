@@ -30,7 +30,7 @@ const AdminOrders = () => {
         const res = await getAdminPrintOrders(params);
         setPrintOrders(res.data.data || []);
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
@@ -54,7 +54,7 @@ const AdminOrders = () => {
         toast.success(`Updated to ${PRINT_ORDER_STATUSES[status]?.label}`);
       }
       fetchOrders();
-    } catch (err) {
+    } catch {
       toast.error('Failed to update');
     }
   };

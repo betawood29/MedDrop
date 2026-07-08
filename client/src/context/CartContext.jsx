@@ -2,13 +2,12 @@
 // Shop items persist to localStorage AND sync to server (cross-device)
 // Print order: metadata persists to localStorage, File objects stored in memory
 
-import { createContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { DELIVERY_FEE, FREE_DELIVERY_MIN, SOCKET_URL } from '../utils/constants';
 import { useAuth } from '../hooks/useAuth';
 import { getServerCart, saveServerCart } from '../services/cartService';
-
-export const CartContext = createContext(null);
+import { CartContext } from './CartContextBase';
 
 export const CartProvider = ({ children }) => {
   const { user, loading: authLoading } = useAuth();

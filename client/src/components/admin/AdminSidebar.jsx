@@ -28,9 +28,11 @@ const AdminSidebar = ({ onLogout, collapsed, onToggle }) => {
     return () => socket.disconnect();
   }, []);
 
-  // Clear badges when visiting relevant pages
+  // Clear badges when visiting relevant pages — intentionally synchronizes with
+  // navigation (an external-to-React event), not derivable during render.
   useEffect(() => {
     if (location.pathname.startsWith('/admin/orders')) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShopCount(0);
       setPrintCount(0);
     }
