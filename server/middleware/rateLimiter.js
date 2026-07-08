@@ -15,6 +15,19 @@ const otpLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// OTP verification: max 10 attempts per 10 minutes per IP — looser than send-otp since
+// users can mistype a code, but tight enough to block guessing/abuse of the endpoint.
+const otpVerifyLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  message: {
+    success: false,
+    message: 'Too many verification attempts. Please try again after 10 minutes.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // General API: max 100 requests per minute per IP
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -40,4 +53,4 @@ const adminLoginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { otpLimiter, apiLimiter, adminLoginLimiter };
+module.exports = { otpLimiter, otpVerifyLimiter, apiLimiter, adminLoginLimiter };

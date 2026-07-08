@@ -284,8 +284,35 @@ const updateOrderStatus = async (req, res, next) => {
     if (status === 'delivered' && order.paymentMethod === 'cod') {
       order.paymentStatus = 'paid';
     }
-    if (status === 'cancelled' && order.paymentStatus === 'paid') {
-      order.paymentStatus = 'refunded';
+
+    if (status === 'cancelled') {
+      // Restore stock for items that were actually deducted at order time — stock was
+      // taken out of inventory when the order was placed, not when it's confirmed, so
+      // cancelling must give it back regardless of payment status.
+      await Promise.all(order.items.map(async (item) => {
+        if (item.stockDeducted && item.product) {
+          await Product.updateOne(
+            { _id: item.product },
+            { $inc: { stockQty: item.quantity }, $set: { inStock: true } }
+          );
+        }
+      }));
+
+      if (order.paymentStatus === 'paid' && order.razorpayPaymentId) {
+        // A captured charge — issue a real Razorpay refund, don't just flip a label.
+        try {
+          const { refundPayment } = require('../services/paymentService');
+          await refundPayment(order.razorpayPaymentId, order.total);
+          order.paymentStatus = 'refunded';
+        } catch (refundErr) {
+          console.error('[Razorpay refund failed]', refundErr.message);
+          order.paymentStatus = 'refund_failed';
+        }
+      } else if (order.paymentStatus === 'authorized') {
+        // Never captured (Rx order cancelled before pharmacist confirmation) — no charge
+        // was taken, so there's nothing to refund; Razorpay auto-releases the hold.
+        order.paymentStatus = 'failed';
+      }
     }
 
     // Capture authorized Rx-order payment when admin confirms the order

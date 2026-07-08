@@ -1,6 +1,7 @@
 // Order controller — create order, list user's orders, get order details
 // Calculates delivery fee: ₹25 flat, FREE above ₹199
 
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const ApiResponse = require('../utils/apiResponse');
@@ -11,6 +12,9 @@ const DELIVERY_FEE = 25;
 const FREE_DELIVERY_MIN = 199;
 
 // POST /api/orders — place a new order
+// This endpoint has no payment gateway involved, so it only accepts Cash on Delivery.
+// Paid (UPI/card) orders MUST go through /api/payments/initiate + /api/payments/verify,
+// which actually verify a Razorpay charge before creating the order.
 const createOrder = async (req, res, next) => {
   try {
     const { error } = createOrderSchema.validate(req.body);
@@ -18,85 +22,96 @@ const createOrder = async (req, res, next) => {
 
     const { items, hostel, gate, note, paymentMethod } = req.body;
 
-    // Fetch product details and build order items with price snapshots
-    const orderItems = [];
-    let subtotal = 0;
-
-    const productsToUpdate = [];
-
-    for (const item of items) {
-      const product = await Product.findById(item.product);
-      if (!product) throw ApiError.badRequest(`Product not found: ${item.product}`);
-      if (!product.isActive || !product.inStock) {
-        throw ApiError.badRequest(`${product.name} is currently unavailable`);
-      }
-      if (product.stockQty > 0 && product.stockQty < item.quantity) {
-        throw ApiError.badRequest(`Only ${product.stockQty} units of ${product.name} available`);
-      }
-
-      const itemTotal = product.price * item.quantity;
-      subtotal += itemTotal;
-
-      orderItems.push({
-        product: product._id,
-        name: product.name,
-        price: product.price,
-        quantity: item.quantity,
-        image: product.image,
-      });
-
-      productsToUpdate.push({ product, quantity: item.quantity });
+    if (paymentMethod !== 'cod') {
+      throw ApiError.badRequest('Online payments must be placed via the checkout payment flow');
     }
 
-    // Deduct stock after all validations pass
-    for (const { product, quantity } of productsToUpdate) {
-      if (product.stockQty > 0) {
-        product.stockQty -= quantity;
-        if (product.stockQty <= 0) {
-          product.stockQty = 0;
-          product.inStock = false;
-        }
-        await product.save();
+    // Validation, stock reservation, and order creation all run in one transaction so a
+    // failure partway through (unavailable item, lost stock race, order save error)
+    // rolls everything back instead of leaving stock decremented with no order.
+    const session = await mongoose.startSession();
+    let order, socketUpdates;
 
-        // Emit real-time stock update to shop AND admin
-        try {
-          const { getIO } = require('../config/socket');
-          const io = getIO();
-          const payload = {
-            _id: product._id,
+    try {
+      await session.withTransaction(async () => {
+        socketUpdates = [];
+        const orderItems = [];
+        const productDocs = [];
+        let subtotal = 0;
+
+        for (const item of items) {
+          const product = await Product.findById(item.product).session(session);
+          if (!product) throw ApiError.badRequest(`Product not found: ${item.product}`);
+          if (!product.isActive || !product.inStock) {
+            throw ApiError.badRequest(`${product.name} is currently unavailable`);
+          }
+          if (product.stockQty > 0 && product.stockQty < item.quantity) {
+            throw ApiError.badRequest(`Only ${product.stockQty} units of ${product.name} available`);
+          }
+
+          subtotal += product.price * item.quantity;
+
+          orderItems.push({
+            product: product._id,
             name: product.name,
-            inStock: product.inStock,
-            stockQty: product.stockQty,
-          };
-          io.to('shop').emit('product-update', payload);
-          io.to('admin').emit('product-update', payload);
-        } catch (socketErr) {
-          // Socket not initialized
+            price: product.price,
+            quantity: item.quantity,
+            image: product.image,
+            stockDeducted: product.stockQty > 0,
+          });
+
+          productDocs.push({ product, quantity: item.quantity });
         }
-      }
+
+        // Atomically reserve stock — findOneAndUpdate's filter re-checks stockQty at
+        // write time, so two concurrent orders for the last unit can't both succeed.
+        for (const { product, quantity } of productDocs) {
+          if (product.stockQty > 0) {
+            const updated = await Product.findOneAndUpdate(
+              { _id: product._id, stockQty: { $gte: quantity } },
+              { $inc: { stockQty: -quantity }, $set: { lastOrderedAt: new Date() } },
+              { new: true, session }
+            );
+            if (!updated) {
+              throw ApiError.badRequest(`Only a few units of ${product.name} are left — please update your cart and try again`);
+            }
+            if (updated.stockQty <= 0 && updated.inStock) {
+              await Product.updateOne({ _id: updated._id }, { inStock: false }, { session });
+              updated.inStock = false;
+            }
+            socketUpdates.push({ _id: updated._id, name: updated.name, inStock: updated.inStock, stockQty: updated.stockQty });
+          }
+        }
+
+        const deliveryFee = subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE;
+        const total = subtotal + deliveryFee;
+
+        const created = await Order.create([{
+          user: req.user._id,
+          items: orderItems,
+          subtotal,
+          deliveryFee,
+          total,
+          hostel,
+          gate,
+          note,
+          paymentMethod,
+          paymentStatus: 'pending',
+        }], { session });
+        order = created[0];
+      });
+    } finally {
+      session.endSession();
     }
 
-    // Calculate delivery fee
-    const deliveryFee = subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE;
-    const total = subtotal + deliveryFee;
-
-    const order = await Order.create({
-      user: req.user._id,
-      items: orderItems,
-      subtotal,
-      deliveryFee,
-      total,
-      hostel,
-      gate,
-      note,
-      paymentMethod,
-      paymentStatus: paymentMethod === 'cod' ? 'pending' : 'pending',
-    });
-
-    // Emit to admin room for live feed
+    // Post-commit side effects — fire-and-forget, never block the response
     try {
       const { getIO } = require('../config/socket');
       const io = getIO();
+      socketUpdates.forEach((payload) => {
+        io.to('shop').emit('product-update', payload);
+        io.to('admin').emit('product-update', payload);
+      });
       io.to('admin').emit('new-order', {
         orderId: order.orderId,
         total: order.total,

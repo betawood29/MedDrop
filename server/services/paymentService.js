@@ -24,14 +24,20 @@ const createRazorpayOrder = async (amount, orderId, authorizeOnly = false) => {
   return order;
 };
 
-// Verify Razorpay payment signature to confirm payment is genuine
+// Verify Razorpay payment signature to confirm payment is genuine.
+// Uses a constant-time comparison so response timing can't leak how many
+// leading bytes of a guessed signature matched.
 const verifyPayment = (razorpayOrderId, razorpayPaymentId, razorpaySignature) => {
   const generatedSignature = crypto
     .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
     .update(`${razorpayOrderId}|${razorpayPaymentId}`)
     .digest('hex');
 
-  if (generatedSignature !== razorpaySignature) {
+  const expected = Buffer.from(generatedSignature, 'utf8');
+  const provided = Buffer.from(String(razorpaySignature || ''), 'utf8');
+  const isValid = expected.length === provided.length && crypto.timingSafeEqual(expected, provided);
+
+  if (!isValid) {
     throw ApiError.badRequest('Payment verification failed — invalid signature');
   }
 
@@ -44,4 +50,10 @@ const capturePayment = async (paymentId, amount) => {
   return razorpay.payments.capture(paymentId, Math.round(amount * 100), 'INR');
 };
 
-module.exports = { createRazorpayOrder, verifyPayment, capturePayment };
+// Refund a captured Razorpay payment (used when an admin cancels a paid order)
+const refundPayment = async (paymentId, amount) => {
+  if (!razorpay) throw ApiError.badRequest('Payment gateway not configured');
+  return razorpay.payments.refund(paymentId, { amount: Math.round(amount * 100) });
+};
+
+module.exports = { createRazorpayOrder, verifyPayment, capturePayment, refundPayment };

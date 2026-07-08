@@ -38,6 +38,13 @@ const server = http.createServer(app);
 // Initialize Socket.io
 initSocket(server);
 
+// Razorpay webhook — mounted before CORS/JSON parsing. It's a server-to-server call
+// (no browser Origin header, so the CORS allowlist below would otherwise reject it) that
+// authenticates itself via an HMAC signature over the raw request body, not via CORS or
+// pre-parsed JSON — see controllers/webhookController.js for why raw() is required here.
+const { razorpayWebhook } = require('./controllers/webhookController');
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), razorpayWebhook);
+
 // --- Middleware ---
 const allowedOrigins = [
   'http://localhost:5173',

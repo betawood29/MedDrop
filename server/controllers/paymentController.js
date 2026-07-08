@@ -8,65 +8,20 @@
 // Non-Rx flow (immediate capture):
 //   1. initiatePayment  → payment_capture:1
 //   2. verifyAndCreateOrder → paymentStatus:'paid' immediately
+//
+// If the client never calls verifyAndCreateOrder after paying (closed tab, crash, flaky
+// network), the Razorpay webhook (controllers/webhookController.js) reconciles it later
+// using the same finalizeOrder() logic, keyed off the PendingPayment snapshot saved below.
 
-const Order        = require('../models/Order');
-const Product      = require('../models/Product');
-const Prescription = require('../models/Prescription');
+const Product        = require('../models/Product');
+const PendingPayment = require('../models/PendingPayment');
 const { createRazorpayOrder, verifyPayment } = require('../services/paymentService');
+const {
+  finalizeOrder, emitOrderSideEffects, findValidPrescription, getPrescriptionBlockReason,
+  DELIVERY_FEE, FREE_DELIVERY_MIN,
+} = require('../services/orderFulfillmentService');
 const ApiResponse  = require('../utils/apiResponse');
 const ApiError     = require('../utils/apiError');
-
-const DELIVERY_FEE     = 25;
-const FREE_DELIVERY_MIN = 199;
-
-// ─── helpers ────────────────────────────────────────────────────────────────
-
-// Find the most recent valid prescription for the given user.
-// Uses $ne / null comparisons instead of $exists:false — more robust when Mongoose
-// stores unset ObjectId fields as null rather than omitting them entirely.
-const findValidPrescription = async (userId) => {
-  const now = new Date();
-  return Prescription.findOne({
-    user: userId,
-    status: { $in: ['approved', 'partially_approved'] },
-    $and: [
-      // Not expired  — null/missing expiresAt means no expiry was set (old docs) → still valid
-      { $or: [{ expiresAt: { $gt: now } }, { expiresAt: null }] },
-      {
-        $or: [
-          // Reusable path: has remaining uses
-          {
-            isReusable: true,
-            $expr: { $lt: ['$usageCount', '$maxUsage'] },
-          },
-          // Single-use path: no linked order, no legacy delivery request
-          // null matches both explicitly-null AND missing fields
-          {
-            isReusable: { $ne: true },        // false | null | missing
-            order: null,                       // not linked to any order yet
-            'deliveryRequest.hostel': null,    // no legacy delivery request
-          },
-        ],
-      },
-    ],
-  }).sort({ createdAt: -1 });
-};
-
-// Describe why the user has no valid prescription — returns { message, rxStatus }
-const getPrescriptionBlockReason = async (userId) => {
-  const latest = await Prescription.findOne({ user: userId }).sort({ createdAt: -1 }).lean();
-  if (!latest)
-    return { message: 'No prescription uploaded. Please upload one to order prescription medicines.', rxStatus: 'none' };
-  if (latest.status === 'pending')
-    return { message: 'Your prescription is still under review. You can proceed once our pharmacist approves it.', rxStatus: 'pending' };
-  if (latest.status === 'clarification_required')
-    return { message: 'Our pharmacist needs clarification on your prescription. Please check the Prescription page and respond.', rxStatus: 'clarification_required' };
-  if (latest.status === 'rejected')
-    return { message: `Your prescription was rejected. ${latest.adminNote ? `Reason: ${latest.adminNote}. ` : ''}Please upload a new one.`, rxStatus: 'rejected' };
-  if (latest.expiresAt && latest.expiresAt < new Date())
-    return { message: 'Your prescription has expired (90-day validity). Please upload a fresh prescription.', rxStatus: 'none' };
-  return { message: 'No valid prescription found. Please upload an approved prescription to order medicines.', rxStatus: 'none' };
-};
 
 // ─── POST /api/payments/initiate ────────────────────────────────────────────
 
@@ -105,6 +60,14 @@ const initiatePayment = async (req, res, next) => {
     // Rx orders: authorize only (payment_capture:0); non-Rx: immediate capture
     const razorpayOrder = await createRazorpayOrder(total, receipt, hasRxItems);
 
+    // Snapshot cart/delivery context so the webhook can finalize the order even if the
+    // client never calls back after paying.
+    await PendingPayment.findOneAndUpdate(
+      { razorpayOrderId: razorpayOrder.id },
+      { user: req.user._id, items, hostel, gate, note },
+      { upsert: true }
+    );
+
     ApiResponse.success(res, {
       razorpayOrderId: razorpayOrder.id,
       amount:          razorpayOrder.amount,
@@ -134,110 +97,17 @@ const verifyAndCreateOrder = async (req, res, next) => {
     }
     if (!items?.length) throw ApiError.badRequest('Items are required');
 
-    // 1. Verify signature
+    // Verify signature
     verifyPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature);
 
-    // 2. Build order items + deduct stock
-    const orderItems = [];
-    let subtotal = 0;
-    const productsToUpdate = [];
-    let hasRxItems = false;
-
-    for (const item of items) {
-      const product = await Product.findById(item.product);
-      if (!product || !product.isActive || !product.inStock) {
-        throw ApiError.badRequest(`${product?.name || item.product} is unavailable`);
-      }
-      if (product.stockQty > 0 && product.stockQty < item.quantity) {
-        throw ApiError.badRequest(`Only ${product.stockQty} unit(s) of ${product.name} available`);
-      }
-      subtotal += product.price * item.quantity;
-      if (product.requiresPrescription) hasRxItems = true;
-      orderItems.push({ product: product._id, name: product.name, price: product.price, quantity: item.quantity, image: product.image });
-      productsToUpdate.push({ product, quantity: item.quantity });
-    }
-
-    // Deduct stock + track popularity signal (units sold)
-    for (const { product, quantity } of productsToUpdate) {
-      product.orderCount = (product.orderCount || 0) + quantity;
-      product.lastOrderedAt = new Date();
-      const tracksStock = product.stockQty > 0;
-      if (tracksStock) {
-        product.stockQty -= quantity;
-        if (product.stockQty <= 0) { product.stockQty = 0; product.inStock = false; }
-      }
-      await product.save();
-      if (tracksStock) {
-        try {
-          const { getIO } = require('../config/socket');
-          const payload = { _id: product._id, name: product.name, inStock: product.inStock, stockQty: product.stockQty };
-          getIO().to('shop').emit('product-update', payload);
-          getIO().to('admin').emit('product-update', payload);
-        } catch (_) {}
-      }
-    }
-
-    // 3. Prescription validation for Rx items
-    let validRx = null;
-    if (hasRxItems) {
-      validRx = await findValidPrescription(req.user._id);
-      if (!validRx) {
-        const { message, rxStatus } = await getPrescriptionBlockReason(req.user._id);
-        throw ApiError.prescriptionRequired(message, rxStatus);
-      }
-
-      // Validate cart Rx items against the prescription's approved medicines list (if attached)
-      if (validRx.approvedMedicines?.length > 0) {
-        const approvedIds = validRx.approvedMedicines.map(m => m.product.toString());
-        const rxItems = await Promise.all(
-          items.map(i => Product.findById(i.product).select('requiresPrescription name'))
-        );
-        const unapproved = rxItems.filter(p => p?.requiresPrescription && !approvedIds.includes(p._id.toString()));
-        if (unapproved.length) {
-          throw ApiError.badRequest(
-            `These medicines are not in your approved prescription: ${unapproved.map(p => p.name).join(', ')}`
-          );
-        }
-      }
-    }
-
-    // 4. Create order
-    const deliveryFee    = subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE;
-    const total          = subtotal + deliveryFee;
-    const requiresCapture = hasRxItems; // Rx orders use authorize/capture
-
-    const order = await Order.create({
-      user: req.user._id,
-      items: orderItems,
-      subtotal, deliveryFee, total,
-      hostel, gate, note,
-      paymentMethod: 'upi',
-      paymentStatus: requiresCapture ? 'authorized' : 'paid',
+    const { order, requiresCapture, socketUpdates, alreadyProcessed } = await finalizeOrder({
+      userId: req.user._id,
+      items, hostel, gate, note,
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,
-      requiresCapture,
-      prescription: validRx?._id,
     });
 
-    // 5. Link prescription to order & increment usage
-    if (validRx) {
-      validRx.order  = order._id;
-      validRx.orders = [...(validRx.orders || []), order._id];
-      validRx.usageCount = (validRx.usageCount || 0) + 1;
-      await validRx.save();
-    }
-
-    // 6. Notify admin
-    try {
-      const { getIO } = require('../config/socket');
-      getIO().to('admin').emit('new-order', {
-        orderId: order.orderId,
-        total: order.total,
-        items: order.items.length,
-        gate: order.gate,
-        requiresCapture,
-      });
-    } catch (_) {}
+    if (!alreadyProcessed) emitOrderSideEffects(order, requiresCapture, socketUpdates);
 
     ApiResponse.created(res, {
       orderId:        order.orderId,
@@ -245,9 +115,11 @@ const verifyAndCreateOrder = async (req, res, next) => {
       status:         order.status,
       paymentStatus:  order.paymentStatus,
       requiresCapture,
-    }, requiresCapture
-      ? 'Payment authorized! Order will be confirmed once our pharmacist verifies your prescription.'
-      : 'Payment verified & order placed!'
+    }, alreadyProcessed
+      ? 'Order already placed for this payment'
+      : requiresCapture
+        ? 'Payment authorized! Order will be confirmed once our pharmacist verifies your prescription.'
+        : 'Payment verified & order placed!'
     );
   } catch (err) {
     next(err);

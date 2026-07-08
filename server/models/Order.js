@@ -11,6 +11,10 @@ const orderItemSchema = new mongoose.Schema(
     price: Number,    // snapshot of price at order time
     quantity: Number,
     image: String,
+    // Whether stockQty was actually decremented for this item at order time (false for
+    // untracked/unlimited-stock products) — lets cancellation restore stock correctly
+    // without guessing from the product's current (possibly since-changed) stockQty.
+    stockDeducted: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -69,11 +73,18 @@ const orderSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'authorized', 'paid', 'failed', 'refunded'],
+      enum: ['pending', 'authorized', 'paid', 'failed', 'refunded', 'refund_failed'],
       default: 'pending',
     },
     razorpayOrderId: String,
-    razorpayPaymentId: String,
+    razorpayPaymentId: {
+      type: String,
+      // Sparse unique index — COD orders have no razorpayPaymentId, but when one is set
+      // it must be unique so a retried /payments/verify call can't create a duplicate
+      // order (and double-deduct stock) for the same actual charge.
+      unique: true,
+      sparse: true,
+    },
     // For Rx orders: payment is authorized (not captured) until admin confirms
     requiresCapture: { type: Boolean, default: false },
     // Prescription used for this order (for traceability)
@@ -92,10 +103,13 @@ const Counter = mongoose.models.Counter || mongoose.model('Counter', counterSche
 
 orderSchema.pre('save', async function (next) {
   if (!this.orderId) {
+    // Run the counter increment inside the same transaction as the order save (if any),
+    // so an aborted order-creation transaction doesn't leave a permanent gap-causing bump.
+    const session = this.$session();
     const counter = await Counter.findOneAndUpdate(
       { _id: 'orderId' },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true }
+      { new: true, upsert: true, ...(session ? { session } : {}) }
     );
     this.orderId = 'MD' + String(counter.seq).padStart(6, '0');
   }
