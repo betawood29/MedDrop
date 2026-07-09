@@ -8,7 +8,9 @@ const mongoose     = require('mongoose');
 const Order        = require('../models/Order');
 const Product      = require('../models/Product');
 const Prescription = require('../models/Prescription');
+const PrintOrder   = require('../models/PrintOrder');
 const ApiError     = require('../utils/apiError');
+const { computePrintSubtotal } = require('./printPricingService');
 
 const DELIVERY_FEE      = 20;
 const FREE_DELIVERY_MIN = 199;
@@ -60,31 +62,51 @@ const getPrescriptionBlockReason = async (userId) => {
   return { message: 'No valid prescription found. Please upload an approved prescription to order medicines.', rxStatus: 'none' };
 };
 
-// Turns a verified/authenticated payment into an order. Idempotent on razorpayPaymentId.
-// Returns { order, requiresCapture, socketUpdates, alreadyProcessed }.
+// Look up an existing order/printOrder for this payment across both collections — used
+// for the idempotency fast-path and the duplicate-key fallback below.
+const findExistingByPayment = async (razorpayPaymentId) => {
+  const [order, printOrder] = await Promise.all([
+    Order.findOne({ razorpayPaymentId }),
+    PrintOrder.findOne({ razorpayPaymentId }),
+  ]);
+  return { order, printOrder };
+};
+
+// Turns a verified/authenticated payment into an order (shop order, print order, or
+// both — combined into ONE payment with a single shared delivery fee). Idempotent on
+// razorpayPaymentId. Returns { order, printOrder, requiresCapture, socketUpdates, alreadyProcessed }.
 // Throws ApiError on validation failure (unavailable item, Rx block, lost stock race) —
 // callers decide what that means for their response (client call → error response;
 // webhook → log for manual follow-up).
-const finalizeOrder = async ({ userId, items, hostel, gate, note, razorpayOrderId, razorpayPaymentId }) => {
-  const existing = await Order.findOne({ razorpayPaymentId });
-  if (existing) return { order: existing, requiresCapture: existing.requiresCapture, socketUpdates: [], alreadyProcessed: true };
+const finalizeOrder = async ({ userId, items, hostel, gate, note, printOrder, razorpayOrderId, razorpayPaymentId }) => {
+  if ((!items || items.length === 0) && !printOrder) {
+    throw ApiError.badRequest('Nothing to order');
+  }
 
-  // Validation, Rx check, stock reservation, and order creation all run in one
-  // transaction. If anything fails partway (unavailable item, failed Rx check, lost
-  // stock race, order save error), ALL of it rolls back together instead of leaving
-  // stock decremented with no order to show for it.
+  const existing = await findExistingByPayment(razorpayPaymentId);
+  if (existing.order || existing.printOrder) {
+    return {
+      order: existing.order, printOrder: existing.printOrder,
+      requiresCapture: existing.order?.requiresCapture, socketUpdates: [], alreadyProcessed: true,
+    };
+  }
+
+  // Validation, Rx check, stock reservation, and order creation (shop + print) all run
+  // in one transaction. If anything fails partway (unavailable item, failed Rx check,
+  // lost stock race, order save error), ALL of it rolls back together instead of
+  // leaving stock decremented — or a payment collected — with no order to show for it.
   const session = await mongoose.startSession();
-  let order, requiresCapture, socketUpdates;
+  let order = null, createdPrintOrder = null, requiresCapture = false, socketUpdates;
 
   try {
     await session.withTransaction(async () => {
       socketUpdates = [];
       const orderItems = [];
       const productDocs = [];
-      let subtotal = 0;
+      let shopSubtotal = 0;
       let hasRxItems = false;
 
-      for (const item of items) {
+      for (const item of items || []) {
         const product = await Product.findById(item.product).session(session);
         if (!product || !product.isActive || !product.inStock) {
           throw ApiError.badRequest(`${product?.name || item.product} is unavailable`);
@@ -92,7 +114,7 @@ const finalizeOrder = async ({ userId, items, hostel, gate, note, razorpayOrderI
         if (product.stockQty > 0 && product.stockQty < item.quantity) {
           throw ApiError.badRequest(`Only ${product.stockQty} unit(s) of ${product.name} available`);
         }
-        subtotal += product.price * item.quantity;
+        shopSubtotal += product.price * item.quantity;
         if (product.requiresPrescription) hasRxItems = true;
         orderItems.push({
           product: product._id, name: product.name, price: product.price,
@@ -150,49 +172,100 @@ const finalizeOrder = async ({ userId, items, hostel, gate, note, razorpayOrderI
         }
       }
 
-      // Create order
-      const deliveryFee = subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE;
-      const total = subtotal + deliveryFee;
+      // One combined delivery fee for the whole checkout (shop + print together), based
+      // on the combined subtotal — not one fee per order type.
+      const { subtotal: printSubtotal, totalPages } = printOrder ? computePrintSubtotal(printOrder.fileConfigs) : { subtotal: 0, totalPages: 0 };
+      const combinedSubtotal = shopSubtotal + printSubtotal;
+      const combinedDeliveryFee = combinedSubtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE;
+      const hasShopItems = (items || []).length > 0;
+
       requiresCapture = hasRxItems; // Rx orders use authorize/capture
 
-      const created = await Order.create([{
-        user: userId,
-        items: orderItems,
-        subtotal, deliveryFee, total,
-        hostel, gate, note,
-        paymentMethod: 'upi',
-        paymentStatus: requiresCapture ? 'authorized' : 'paid',
-        razorpayOrderId, razorpayPaymentId,
-        requiresCapture,
-        prescription: validRx?._id,
-      }], { session });
-      order = created[0];
+      if (hasShopItems) {
+        const shopTotal = shopSubtotal + combinedDeliveryFee;
+        const created = await Order.create([{
+          user: userId,
+          items: orderItems,
+          subtotal: shopSubtotal, deliveryFee: combinedDeliveryFee, total: shopTotal,
+          hostel, gate, note,
+          paymentMethod: 'upi',
+          paymentStatus: requiresCapture ? 'authorized' : 'paid',
+          razorpayOrderId, razorpayPaymentId,
+          requiresCapture,
+          prescription: validRx?._id,
+        }], { session });
+        order = created[0];
 
-      // Link prescription to order & increment usage
-      if (validRx) {
-        validRx.order  = order._id;
-        validRx.orders = [...(validRx.orders || []), order._id];
-        validRx.usageCount = (validRx.usageCount || 0) + 1;
-        await validRx.save({ session });
+        if (validRx) {
+          validRx.order  = order._id;
+          validRx.orders = [...(validRx.orders || []), order._id];
+          validRx.usageCount = (validRx.usageCount || 0) + 1;
+          await validRx.save({ session });
+        }
+      }
+
+      if (printOrder) {
+        // Delivery fee lives on whichever order carries it — zero here when a shop
+        // order in the same payment already covers it, so it's never charged twice.
+        const printDeliveryFee = hasShopItems ? 0 : combinedDeliveryFee;
+        const files = printOrder.files.map((f, i) => {
+          const cfg = printOrder.fileConfigs[i] || {};
+          return {
+            originalName: f.originalName,
+            url: f.url,
+            size: f.size,
+            pages: Math.max(1, parseInt(cfg.pages) || 1),
+            copies: Math.min(50, Math.max(1, parseInt(cfg.copies) || 1)),
+            colorMode: ['bw', 'color'].includes(cfg.colorMode) ? cfg.colorMode : 'bw',
+            sides: ['single', 'double'].includes(cfg.sides) ? cfg.sides : 'single',
+            orientation: ['portrait', 'landscape'].includes(cfg.orientation) ? cfg.orientation : 'portrait',
+          };
+        });
+
+        const createdPrint = await PrintOrder.create([{
+          user: userId,
+          files,
+          config: {
+            copies: files[0]?.copies || 1,
+            colorMode: files[0]?.colorMode || 'bw',
+            sides: files[0]?.sides || 'single',
+            paperSize: 'A4',
+          },
+          totalPages,
+          deliveryFee: printDeliveryFee,
+          hostel, gate, note,
+          paymentMethod: 'upi',
+          // If this payment is authorize-only (Rx items in the same checkout), the print
+          // portion isn't captured yet either — flipped to 'paid' alongside the shop
+          // order when admin confirms (see adminController.updateOrderStatus).
+          paymentStatus: requiresCapture ? 'authorized' : 'paid',
+          razorpayOrderId, razorpayPaymentId,
+        }], { session });
+        createdPrintOrder = createdPrint[0];
       }
     });
   } catch (err) {
     // A concurrent identical retry can lose the race on the unique razorpayPaymentId
     // index — that's a success (the other request's order stands), not a failure.
     if (err?.code === 11000) {
-      const winner = await Order.findOne({ razorpayPaymentId });
-      if (winner) return { order: winner, requiresCapture: winner.requiresCapture, socketUpdates: [], alreadyProcessed: true };
+      const winner = await findExistingByPayment(razorpayPaymentId);
+      if (winner.order || winner.printOrder) {
+        return {
+          order: winner.order, printOrder: winner.printOrder,
+          requiresCapture: winner.order?.requiresCapture, socketUpdates: [], alreadyProcessed: true,
+        };
+      }
     }
     throw err;
   } finally {
     session.endSession();
   }
 
-  return { order, requiresCapture, socketUpdates, alreadyProcessed: false };
+  return { order, printOrder: createdPrintOrder, requiresCapture, socketUpdates, alreadyProcessed: false };
 };
 
 // Post-commit real-time notifications — fire-and-forget, never block the caller's response.
-const emitOrderSideEffects = (order, requiresCapture, socketUpdates) => {
+const emitOrderSideEffects = ({ order, printOrder, requiresCapture, socketUpdates }) => {
   try {
     const { getIO } = require('../config/socket');
     const io = getIO();
@@ -200,9 +273,16 @@ const emitOrderSideEffects = (order, requiresCapture, socketUpdates) => {
       io.to('shop').emit('product-update', payload);
       io.to('admin').emit('product-update', payload);
     });
-    io.to('admin').emit('new-order', {
-      orderId: order.orderId, total: order.total, items: order.items.length, gate: order.gate, requiresCapture,
-    });
+    if (order) {
+      io.to('admin').emit('new-order', {
+        orderId: order.orderId, total: order.total, items: order.items.length, gate: order.gate, requiresCapture,
+      });
+    }
+    if (printOrder) {
+      io.to('admin').emit('new-order', {
+        orderId: printOrder.orderId, total: printOrder.total, items: printOrder.files.length, gate: printOrder.gate, type: 'print',
+      });
+    }
   } catch (_) {}
 };
 

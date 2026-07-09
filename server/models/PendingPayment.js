@@ -19,6 +19,32 @@ const pendingPaymentSchema = new mongoose.Schema({
   hostel: String,
   gate: String,
   note: String,
+  // Present only when a print order was bundled into this payment — files were already
+  // uploaded (via /print/upload-files) before payment, so only their metadata + the
+  // per-file print settings need to survive here for webhook reconciliation.
+  printOrder: {
+    type: {
+      files: [
+        {
+          originalName: String,
+          url: String,
+          size: Number,
+          _id: false,
+        },
+      ],
+      fileConfigs: [
+        {
+          pages: Number,
+          copies: Number,
+          colorMode: String,
+          sides: String,
+          orientation: String,
+          _id: false,
+        },
+      ],
+    },
+    default: undefined,
+  },
   createdAt: { type: Date, default: Date.now, expires: 60 * 60 * 24 },
 });
 

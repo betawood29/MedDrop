@@ -45,6 +45,22 @@ initSocket(server);
 const { razorpayWebhook } = require('./controllers/webhookController');
 app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), razorpayWebhook);
 
+// Uploaded files (print store files) and the health check are also mounted before the
+// strict CORS allowlist below. Both are meant to be reachable via plain links/direct
+// requests (an <a href> view/download click, an uptime monitor) that don't carry a
+// browser Origin header — in production the strict origin check requires one, so it
+// would otherwise reject these with a CORS error before the request ever got here.
+const uploadsDir = path.join(__dirname, '../uploads');
+require('fs').mkdirSync(uploadsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
+// A missing file falls through express.static's next() into whatever comes after it —
+// without this, that would be the strict CORS middleware below, misreporting a 404 as
+// "Not allowed by CORS".
+app.use('/uploads', (req, res) => res.status(404).json({ success: false, message: 'File not found' }));
+app.get('/api/health', cors(), (req, res) => {
+  res.json({ success: true, message: 'MedDrop API is running', timestamp: new Date().toISOString() });
+});
+
 // --- Middleware ---
 const allowedOrigins = [
   'http://localhost:5173',
@@ -89,10 +105,6 @@ app.use((req, res, next) => {
 // Rate limiting on all API routes
 app.use('/api', apiLimiter);
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '../uploads');
-require('fs').mkdirSync(uploadsDir, { recursive: true });
-
 // --- API Routes ---
 app.use('/api/auth', authRoutes);
 app.get('/api/products/trending/all', (req, res, next) => getTrendingProducts(req, res, next));
@@ -114,14 +126,6 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
-
-// Serve uploaded files (print store files)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// Health check (allows any origin so monitoring tools and browsers can reach it)
-app.get('/api/health', cors(), (req, res) => {
-  res.json({ success: true, message: 'MedDrop API is running', timestamp: new Date().toISOString() });
-});
 
 // 404 handler for unknown routes
 app.use('/api/*', (req, res) => {

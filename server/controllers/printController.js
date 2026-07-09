@@ -4,7 +4,7 @@ const PrintOrder = require('../models/PrintOrder');
 const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
 
-const DELIVERY_FEE = 25;
+const DELIVERY_FEE = 20;
 const FREE_DELIVERY_MIN = 199;
 
 // POST /api/print/order — create a print order
@@ -101,6 +101,24 @@ const createPrintOrder = async (req, res, next) => {
   }
 };
 
+// POST /api/print/upload-files — stage files for a prepaid print order (no order/charge
+// created here). Checkout calls this before /payments/initiate so the payment step
+// happens once, for shop + print combined — see services/orderFulfillmentService.js.
+const uploadPrintFiles = async (req, res, next) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      throw ApiError.badRequest('At least one file is required');
+    }
+    ApiResponse.success(res, req.files.map((f) => ({
+      originalName: f.originalname,
+      url: `/uploads/${f.filename}`,
+      size: f.size,
+    })));
+  } catch (err) {
+    next(err);
+  }
+};
+
 // GET /api/print/orders — list user's print orders
 const getPrintOrders = async (req, res, next) => {
   try {
@@ -155,4 +173,4 @@ const getPricing = async (req, res, next) => {
   }
 };
 
-module.exports = { createPrintOrder, getPrintOrders, getPrintOrder, getPricing };
+module.exports = { createPrintOrder, uploadPrintFiles, getPrintOrders, getPrintOrder, getPricing };

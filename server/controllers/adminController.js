@@ -315,13 +315,24 @@ const updateOrderStatus = async (req, res, next) => {
       }
     }
 
-    // Capture authorized Rx-order payment when admin confirms the order
+    // Capture authorized Rx-order payment when admin confirms the order. If a print
+    // order was bundled into the same payment (one combined Razorpay authorization),
+    // it must be captured together — the hold covers both, not just this order's total.
     if (status === 'confirmed' && order.requiresCapture && order.paymentStatus === 'authorized' && order.razorpayPaymentId) {
       try {
         const { capturePayment } = require('../services/paymentService');
-        await capturePayment(order.razorpayPaymentId, order.total);
+        const PrintOrderModel = require('../models/PrintOrder');
+        const linkedPrintOrder = await PrintOrderModel.findOne({
+          razorpayPaymentId: order.razorpayPaymentId, paymentStatus: 'authorized',
+        });
+        const captureAmount = order.total + (linkedPrintOrder?.total || 0);
+        await capturePayment(order.razorpayPaymentId, captureAmount);
         order.paymentStatus = 'paid';
         order.requiresCapture = false;
+        if (linkedPrintOrder) {
+          linkedPrintOrder.paymentStatus = 'paid';
+          await linkedPrintOrder.save();
+        }
       } catch (captureErr) {
         // Log but don't block the status update — admin can retry or handle manually
         console.error('[Razorpay capture failed]', captureErr.message);

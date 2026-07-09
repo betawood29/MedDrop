@@ -10,6 +10,9 @@ import { useCart } from '../hooks/useCart';
 import { getPricing } from '../services/printService';
 import { formatPrice } from '../utils/formatters';
 
+const MAX_FILE_SIZE_MB = 20;
+const MAX_FILES = 10;
+
 const getFileIcon = (name) => {
   const ext = name.split('.').pop().toLowerCase();
   if (ext === 'pdf') return '📄';
@@ -41,7 +44,23 @@ const PrintStorePage = () => {
   }, []);
 
   const handleFileChange = (e) => {
-    const newFiles = Array.from(e.target.files);
+    const selectedFiles = Array.from(e.target.files);
+
+    // Reject oversized files immediately — this is the only place file size can be
+    // validated before checkout; the server also enforces it, but only when the print
+    // order is actually submitted (after any shop-item payment has already gone through).
+    const oversized = selectedFiles.filter((f) => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+    const newFiles = selectedFiles.filter((f) => f.size <= MAX_FILE_SIZE_MB * 1024 * 1024);
+    if (oversized.length) {
+      toast.error(
+        oversized.length === 1
+          ? `"${oversized[0].name}" is over ${MAX_FILE_SIZE_MB}MB. Please choose a smaller file.`
+          : `${oversized.length} files are over ${MAX_FILE_SIZE_MB}MB and were skipped.`
+      );
+    }
+
+    if (newFiles.length === 0) { e.target.value = ''; return; }
+
     setUploading(true);
     setTimeout(() => {
       const items = newFiles.map((f) => ({
@@ -54,9 +73,13 @@ const PrintStorePage = () => {
         orientation: 'portrait',
       }));
       setFileItems((prev) => {
-        const merged = [...prev, ...items].slice(0, 10);
+        const merged = [...prev, ...items];
+        if (merged.length > MAX_FILES) {
+          toast.error(`Only up to ${MAX_FILES} files are allowed — extra files were skipped.`);
+        }
+        const capped = merged.slice(0, MAX_FILES);
         setSelectedIdx(prev.length); // select first new file
-        return merged;
+        return capped;
       });
       setUploading(false);
       e.target.value = '';
@@ -80,7 +103,7 @@ const PrintStorePage = () => {
     const ppp = f.sides === 'double' ? priceInfo.double : priceInfo.single;
     return sum + Math.round(f.pages * f.copies * ppp);
   }, 0);
-  const deliveryFee = pricing ? (totalPrice >= pricing.freeDeliveryMin ? 0 : pricing.deliveryFee) : 25;
+  const deliveryFee = pricing ? (totalPrice >= pricing.freeDeliveryMin ? 0 : pricing.deliveryFee) : 20;
   const grandTotal = totalPrice + deliveryFee;
 
   const handleAddToCart = () => {

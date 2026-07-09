@@ -15,7 +15,7 @@ import DeliveryForm from '../components/cart/DeliveryForm';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
 import { initiatePayment, verifyAndCreateOrder } from '../services/orderService';
-import { createPrintOrder } from '../services/printService';
+import { uploadPrintFiles } from '../services/printService';
 import { getMyPrescriptions } from '../services/prescriptionService';
 import { RX_BLOCKING_STATUSES } from '../utils/constants';
 
@@ -144,33 +144,12 @@ const CheckoutPage = () => {
   const handlePlaceOrder = async ({ hostel, gate, note }) => {
     setLoading(true);
     try {
-      let shopOrderId = null;
-
-      if (items.length > 0) {
-        const cartItems = items.map((i) => ({ product: i.product, quantity: i.quantity }));
-
-        // Step 1: Initiate payment (validates cart, creates Razorpay order)
-        const initRes = await initiatePayment({ items: cartItems, hostel, gate, note });
-        const { razorpayOrderId, amount, keyId, authorizeOnly } = initRes.data.data;
-
-        // Step 2: Open Razorpay — authorize-only for Rx orders (captured after admin confirms)
-        const paymentResponse = await openRazorpay(razorpayOrderId, amount, keyId, authorizeOnly);
-
-        // Step 3: Verify payment & create actual order
-        const verifyRes = await verifyAndCreateOrder({
-          razorpay_order_id: paymentResponse.razorpay_order_id,
-          razorpay_payment_id: paymentResponse.razorpay_payment_id,
-          razorpay_signature: paymentResponse.razorpay_signature,
-          items: cartItems,
-          hostel,
-          gate,
-          note,
-        });
-
-        shopOrderId = verifyRes.data.data.orderId;
-      }
-
-      // Handle print order
+      // Step 0: if there's a print order, upload its files first — nothing is charged
+      // yet, so a failure here (bad file, network drop) costs nothing and never touches
+      // payment. Shop items and the print order are then paid for together in ONE
+      // Razorpay payment (single combined delivery fee) and created atomically — either
+      // both orders exist or neither does, so there's no "one succeeded, one didn't" case.
+      let printPayload = null;
       if (printOrder) {
         const printData = getPrintOrderWithFiles();
         if (printData.filesLost) {
@@ -180,6 +159,7 @@ const CheckoutPage = () => {
         }
         const formData = new FormData();
         printData.fileItems.forEach((f) => formData.append('files', f.file));
+        const uploadRes = await uploadPrintFiles(formData);
         const fileConfigs = printData.fileItems.map((f) => ({
           pages: f.pages,
           copies: f.copies,
@@ -187,22 +167,33 @@ const CheckoutPage = () => {
           sides: f.sides,
           orientation: f.orientation,
         }));
-        formData.append('fileConfigs', JSON.stringify(fileConfigs));
-        formData.append('hostel', hostel);
-        formData.append('gate', gate);
-        formData.append('note', note);
-        await createPrintOrder(formData);
+        printPayload = { files: uploadRes.data.data, fileConfigs };
       }
 
+      const cartItems = items.map((i) => ({ product: i.product, quantity: i.quantity }));
+
+      // Step 1: Initiate payment — one combined Razorpay order for shop items + print
+      const initRes = await initiatePayment({ items: cartItems, printOrder: printPayload, hostel, gate, note });
+      const { razorpayOrderId, amount, keyId, authorizeOnly } = initRes.data.data;
+
+      // Step 2: Open Razorpay — authorize-only for Rx orders (captured after admin confirms)
+      const paymentResponse = await openRazorpay(razorpayOrderId, amount, keyId, authorizeOnly);
+
+      // Step 3: Verify payment & create the order(s)
+      const verifyRes = await verifyAndCreateOrder({
+        razorpay_order_id: paymentResponse.razorpay_order_id,
+        razorpay_payment_id: paymentResponse.razorpay_payment_id,
+        razorpay_signature: paymentResponse.razorpay_signature,
+        items: cartItems,
+        printOrder: printPayload,
+        hostel, gate, note,
+      });
+
+      const { orderId: shopOrderId, printOrderId } = verifyRes.data.data;
+
       clearAll();
-      if (items.length > 0 && printOrder) {
-        toast.success('Orders placed & paid!');
-      } else if (printOrder) {
-        toast.success('Print order placed!');
-      } else {
-        toast.success('Order placed & paid!');
-      }
-      navigate(shopOrderId ? `/orders/${shopOrderId}` : '/orders');
+      toast.success(shopOrderId && printOrderId ? 'Orders placed & paid!' : 'Order placed & paid!');
+      navigate(shopOrderId ? `/orders/${shopOrderId}` : printOrderId ? `/orders/print/${printOrderId}` : '/orders');
     } catch (err) {
       const data    = err.response?.data;
       const msg     = data?.message || err.message || 'Something went wrong';

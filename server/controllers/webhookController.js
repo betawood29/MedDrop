@@ -8,6 +8,7 @@
 
 const crypto = require('crypto');
 const Order = require('../models/Order');
+const PrintOrder = require('../models/PrintOrder');
 const PendingPayment = require('../models/PendingPayment');
 const { finalizeOrder, emitOrderSideEffects } = require('../services/orderFulfillmentService');
 
@@ -43,8 +44,11 @@ const razorpayWebhook = async (req, res) => {
     if (!payment?.id || !payment?.order_id) return res.json({ success: true });
 
     // Client already completed the order via /payments/verify — nothing to reconcile.
-    const already = await Order.findOne({ razorpayPaymentId: payment.id });
-    if (already) return res.json({ success: true });
+    const [alreadyOrder, alreadyPrintOrder] = await Promise.all([
+      Order.findOne({ razorpayPaymentId: payment.id }),
+      PrintOrder.findOne({ razorpayPaymentId: payment.id }),
+    ]);
+    if (alreadyOrder || alreadyPrintOrder) return res.json({ success: true });
 
     const pending = await PendingPayment.findOne({ razorpayOrderId: payment.order_id });
     if (!pending) {
@@ -57,9 +61,10 @@ const razorpayWebhook = async (req, res) => {
       return res.json({ success: true });
     }
 
-    const { order, requiresCapture, socketUpdates, alreadyProcessed } = await finalizeOrder({
+    const { order, printOrder, requiresCapture, socketUpdates, alreadyProcessed } = await finalizeOrder({
       userId: pending.user,
       items: pending.items,
+      printOrder: pending.printOrder,
       hostel: pending.hostel,
       gate: pending.gate,
       note: pending.note,
@@ -68,8 +73,8 @@ const razorpayWebhook = async (req, res) => {
     });
 
     if (!alreadyProcessed) {
-      console.log(`[Razorpay webhook] reconciled order ${order.orderId} — client never called /verify`);
-      emitOrderSideEffects(order, requiresCapture, socketUpdates);
+      console.log(`[Razorpay webhook] reconciled order ${order?.orderId || printOrder?.orderId} — client never called /verify`);
+      emitOrderSideEffects({ order, printOrder, requiresCapture, socketUpdates });
     }
 
     res.json({ success: true });

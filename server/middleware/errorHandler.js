@@ -25,6 +25,15 @@ const errorHandler = (err, req, res, next) => {
     message = 'Invalid ID format';
   }
 
+  // Multer upload errors (file too large, too many files, etc.) — otherwise these
+  // surface as an uncoded 500 since MulterError has no statusCode of its own.
+  if (err.name === 'MulterError') {
+    statusCode = 400;
+    if (err.code === 'LIMIT_FILE_SIZE') message = 'File is too large. Please upload a smaller file.';
+    else if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') message = 'Too many files uploaded.';
+    else message = err.message;
+  }
+
   console.error(`[ERROR] ${statusCode} - ${message}`, err.stack ? `\n${err.stack}` : '');
 
   res.status(statusCode).json({

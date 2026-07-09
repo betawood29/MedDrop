@@ -1,5 +1,5 @@
 // Order controller — create order, list user's orders, get order details
-// Calculates delivery fee: ₹25 flat, FREE above ₹199
+// Calculates delivery fee: ₹20 flat, FREE above ₹199
 
 const mongoose = require('mongoose');
 const Order = require('../models/Order');
@@ -8,7 +8,7 @@ const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
 const { createOrderSchema } = require('../utils/validators');
 
-const DELIVERY_FEE = 25;
+const DELIVERY_FEE = 20;
 const FREE_DELIVERY_MIN = 199;
 
 // POST /api/orders — place a new order

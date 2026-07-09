@@ -9,6 +9,7 @@ const SubCategory = require('../models/SubCategory');
 const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
 const { scoreProduct, seededShuffle, todaySeed } = require('../utils/trending');
+const { getISTHour } = require('../utils/time');
 const TIME_BANDS = require('../config/timeBands');
 
 // Case-insensitive exact-name match, e.g. 'Dairy and Breakfast' → /^Dairy and Breakfast$/i
@@ -90,7 +91,7 @@ const getFrequentlyBoughtTogether = async (req, res, next) => {
 // section only ever shows genuinely relevant products; priorityKeywords just bias ranking within that pool.
 const getSuggestedProducts = async (req, res, next) => {
   try {
-    const hour = new Date().getHours();
+    const hour = getISTHour();
     const band = TIME_BANDS.find(({ hours: [start, end] }) =>
       start < end ? hour >= start && hour < end : hour >= start || hour < end
     ) || TIME_BANDS[0];

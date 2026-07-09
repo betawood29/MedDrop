@@ -4,7 +4,7 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002/ap
 export const API_BASE_URL = API_URL.replace('/api', '');
 export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE_URL;
 
-export const DELIVERY_FEE = 25;
+export const DELIVERY_FEE = 20;
 export const FREE_DELIVERY_MIN = 199;
 
 export const GATE_OPTIONS = ['Main Gate', 'Back Gate', 'Side Gate (Library)'];

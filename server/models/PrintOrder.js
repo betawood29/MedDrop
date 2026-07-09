@@ -36,7 +36,7 @@ const printOrderSchema = new mongoose.Schema(
     totalPages: { type: Number, default: 0 },
     pricePerPage: { type: Number, default: 0 },
     subtotal: { type: Number, default: 0 },
-    deliveryFee: { type: Number, default: 25 },
+    deliveryFee: { type: Number, default: 20 },
     total: { type: Number, default: 0 },
     note: { type: String, trim: true },
     hostel: { type: String },
@@ -48,8 +48,22 @@ const printOrderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['cod'],
+      enum: ['cod', 'upi'],
       default: 'cod',
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'authorized', 'paid', 'failed', 'refunded', 'refund_failed'],
+      default: 'pending',
+    },
+    razorpayOrderId: String,
+    razorpayPaymentId: {
+      type: String,
+      // Sparse unique — COD orders have no razorpayPaymentId, but when one is set (a
+      // prepaid print order, alone or bundled with a shop order) it must be unique so a
+      // retried payment-verify call can't create a duplicate print order for one charge.
+      unique: true,
+      sparse: true,
     },
   },
   { timestamps: true }
